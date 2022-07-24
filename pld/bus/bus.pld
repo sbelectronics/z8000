@@ -1,0 +1,67 @@
+name bus;
+device g22v10;
+partno x;
+date 1/1/1980;
+designer smbaker;
+company sbsoftware;
+revision 1;
+assembly x;
+location x;
+
+PIN 1 = BUSAK;
+PIN 2 = !MREQ;
+PIN 3 = !WRITE; 
+PIN 4 = !DS;
+PIN 5 = !AS;
+PIN 6 = ST0;
+PIN 7 = ST1;
+PIN 8 = ST2;
+PIN 9 = ST3;
+PIN 10 = A4;
+PIN 11 = A5;
+PIN 12 = GND;
+PIN 13 = A6;
+PIN 14 = !RX;
+PIN 15 = !INTACK;
+PIN 16 = !IOREQ;
+PIN 17 = !IDECS0;
+PIN 18 = !PIOCS;
+PIN 19 = !SIOCS;
+PIN 20 = !IOW;
+PIN 21 = !IOR;
+PIN 22 = !MW;
+PIN 23 = !MR;
+
+FIELD MEMADR = [A6..A4] ;
+FIELD STATUS = [ST3..ST0] ;
+
+$DEFINE SIO_ADDR  0X
+$DEFINE PIO_ADDR  1X
+$DEFINE IDE0_ADDR 2X
+$DEFINE IDE1_ADDR 3X
+
+$DEFINE STATUS_STANDARD_IO 'b'0010
+$DEFINE STATUS_INTACK_NMI  'b'0101
+$DEFINE STATUS_INTACK_NVI  'b'0110
+$DEFINE STATUS_INTACK_VI   'b'0111
+
+READ = !WRITE;
+
+/* TODO: BUSAK should tri-state the outputs */
+
+IOREQ = !BUSAK & STATUS:STATUS_STANDARD_IO;
+SIOCS = !BUSAK & IOREQ & MEMADR:SIO_ADDR;
+PIOCS = !BUSAK & IOREQ & MEMADR:PIO_ADDR;
+IDECS0 = !BUSAK & IOREQ & MEMADR:IDE0_ADDR;
+
+IOR = !BUSAK & IOREQ & READ & DS;
+IOW = !BUSAK & IOREQ & WRITE & DS;
+
+MR = !BUSAK & MREQ & READ & DS;
+MW = !BUSAK & MREQ & WRITE & DS;
+
+RX = !BUSAK & DS & READ;
+
+/* oddity: 4sun5bu board asserts NVI from SCC, but acks with VI */
+/*         We will ack with NVI */
+INTACK = STATUS:STATUS_INTACK_NVI;

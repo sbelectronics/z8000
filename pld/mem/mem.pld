@@ -1,0 +1,130 @@
+name mem;
+device g22v10;
+partno x;
+date 1/1/1980;
+designer smbaker;
+company sbsoftware;
+revision 1;
+assembly x;
+location x;
+
+PIN 1 = !WRITE;
+PIN 2 = SN0;
+PIN 3 = SN1; 
+PIN 4 = SN2;
+PIN 5 = SN3;
+PIN 6 = SN4;
+PIN 7 = SN5;
+PIN 8 = SN6;   
+PIN 9 = ST2;
+PIN 10 = ST3;
+PIN 11 = !WORD;
+PIN 12 = GND;
+PIN 13 = BOOT;
+PIN 14 = A0;   /* FIXME -- need remap on board to A0 */
+PIN 15 = !SEGT;
+PIN 16 = PAGE3;
+PIN 17 = PAGE2;
+PIN 18 = PAGE1;
+PIN 19 = PAGE0;
+PIN 20 = !ROMHICS;
+PIN 21 = !ROMLOCS;
+PIN 22 = !RAMHICS;
+PIN 23 = !RAMLOCS;
+
+FIELD STATUS = [ST3..ST2] ;
+
+$DEFINE SIO_ADDR  0X
+$DEFINE PIO_ADDR  1X
+$DEFINE IDE0_ADDR 2X
+$DEFINE IDE1_ADDR 3X
+
+$DEFINE STATUS_MEM_DATA    'b'10XX
+$DEFINE STATUS_MEM_PGM     'b'11XX
+$DEFINE STATUS_STANDARD_IO 'b'0010
+$DEFINE STATUS_INTACK_NMI  'b'0101
+$DEFINE STATUS_INTACK_NVI  'b'0110
+$DEFINE STATUS_INTACK_VI   'b'0111
+
+BYTE = !WORD;
+READ = !WRITE;
+SN7 = STATUS:STATUS_MEM_PGM;
+SN8 = BOOT;
+
+/*
+  There are four types of segments:
+     * caller data
+     * caller program
+     * system data
+     * system program
+     * TPA data
+     * TPA program
+
+  system_data and system_program are the same segment, because the system is nonsegmented.
+  The program segments can be mapped to data
+     4sun5bu
+        Reg1: Seg A -> page1 (merged I and D)
+        Reg2: Seg 8 -> page1 (separate I-Mode)
+        Reg3: Seg 8 -> page2 (separate D-Mode)
+        Reg4: Seg B -> page1 (shadow of the I)
+        Reg5: Seg 9 -> page0
+     smbaker:
+        Reg1: Seg 1 -> page1  (merged I and D)
+        Reg2: Seg 11 -> page1 (separate I-Mode)
+        Reg3: Seg 11 -> page9 (separate D-Mode)
+        Reg4: Seg 19 -> page1 (shadow of the I)
+        Reg5: Seg 10 -> page0
+*/
+
+
+FIELD input = [SN8..SN0];
+FIELD output = [PAGE3..PAGE0];
+TABLE input => output {
+/* I-Mode: segments 00-0F RAM in combined I/D */
+00 => 10; 01 => 11; 02 => 12; 03 => 13; 
+04 => 14; 05 => 15; 06 => 16; 07 => 17; 
+08 => 18; 09 => 19; 0A => 1A; 0B => 1B; 
+0C => 1C; 0D => 1D; 0E => 1E; 0F => 1F; 
+
+/* D-Mode: segments 00-0F RAM in combined I/D */
+80 => 10; 81 => 11; 82 => 12; 83 => 13; 
+84 => 14; 85 => 15; 86 => 16; 87 => 17; 
+88 => 18; 89 => 19; 8A => 1A; 8B => 1B; 
+8C => 1C; 8D => 1D; 8E => 1E; 8F => 1F; 
+
+/* I-Mode: segments 10-17 RAM in separate I/D */
+10 => 10; 11 => 11; 12 => 12; 13 => 13; 
+14 => 14; 15 => 15; 16 => 16; 17 => 17; 
+
+/* D-Mode: segments 10-17 RAM in separate I/D */
+90 => 18; 91 => 19; 92 => 1A; 93 => 1B; 
+94 => 1C; 95 => 1D; 96 => 1E; 97 => 1F; 
+
+/* D-Mode: segments 18-1F RAM shadows of the I */
+98 => 10; 99 => 11; 9A => 12; 9B => 13; 
+9C => 14; 9D => 15; 9E => 16; 9F => 17; 
+
+/* I-Mode: segments 40-4F FLASH in combined I/D */
+40 => 20; 41 => 21; 42 => 22; 43 => 23; 
+44 => 24; 45 => 25; 46 => 26; 47 => 27; 
+48 => 28; 49 => 29; 4A => 2A; 4B => 2B; 
+4C => 2C; 4D => 2D; 4E => 2E; 4F => 2F; 
+
+/* D-Mode: segments 50-5F FLASH in combined I/D */
+D0 => 20; D1 => 21; D2 => 22; D3 => 23; 
+D4 => 24; D5 => 25; D6 => 26; D7 => 27; 
+D8 => 28; D9 => 29; DA => 2A; DB => 2B; 
+DC => 2C; DD => 2D; DE => 2E; DF => 2F; 
+
+/* D-Mode and I-Mode: segments 60-60 FLASH for boot segment on rom page 15*/
+E0 => 2F; 60 => 2F; 1E0 => 2F; 160 => 2F;
+
+/* D-Mode and I-Mode: segments 00-00 FLASH for boot initialization vector on rom page 15*/
+180 => 2F; 100 => 2F;
+}
+
+RAMLOCS = !BOOT & !SN6 & (READ # WORD # A0);
+RAMHICS = !BOOT & !SN6 & (READ # WORD # !A0);
+ROMLOCS = (BOOT # SN6) & (READ # WORD # A0);
+ROMHICS = (BOOT # SN6) & (READ # WORD # !A0);
+

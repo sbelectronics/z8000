@@ -1,0 +1,33 @@
+name mem;
+device g22v10;
+partno x;
+date 1/1/1980;
+designer smbaker;
+company sbsoftware;
+revision 1;
+assembly x;
+location x;
+
+/* A0=0 should select the hi bytes, A0=1 should select the low bytes */
+
+ORDER:       !WRITE, SN0, SN1, SN2, SN3, SN4, SN5, SN6, ST2, ST3, !WORD, BOOT, A0, PAGE3, PAGE2, PAGE1, PAGE0, !ROMHICS, !ROMLOCS, !RAMHICS, !RAMLOCS;
+
+VECTORS:         0     0   0    0    0    0    0    0    1    0      0     0   0      L      L      L      L         H         H         L         L     /* data, seg 0 */
+                 0     0   0    0    0    0    0    0    1    0      0     0   1      L      L      L      L         H         H         L         L     /* data, seg 0, A0=1 */
+                 0     0   0    0    0    0    0    0    1    0      1     0   0      L      L      L      L         H         H         L         H     /* data, seg 0, A0=0, byte D8-D15 */
+                 0     0   0    0    0    0    0    0    1    0      1     0   1      L      L      L      L         H         H         H         L     /* data, seg 0, A0=1, byte D0-D7*/
+                 1     0   0    0    0    0    0    0    1    0      1     0   0      L      L      L      L         H         H         L         L     /* data, seg 0, A0=0, byte in read mode*/
+                 1     0   0    0    0    0    0    0    1    0      1     0   1      L      L      L      L         H         H         L         L     /* data, seg 0, A0=1, byte in read mode*/                 
+                 0     0   0    0    0    0    0    0    1    1      0     0   0      L      L      L      L         H         H         L         L     /* instruction, seg 0 */
+                 0     1   0    0    0    0    0    0    1    0      0     0   0      L      L      L      H         H         H         L         L     /* data, seg 1 */
+                 0     1   0    0    0    0    0    0    1    0      0     0   0      L      L      L      H         H         H         L         L     /* instruction, seg 1 */
+                 0     0   0    0    0    1    0    0    1    0      0     0   0      L      L      L      L         H         H         L         L     /* data, seg 0x10 -> page 0 */
+                 0     0   0    0    0    1    0    0    1    1      0     0   0      H      L      L      L         H         H         L         L     /* instruction, seg 0x10 -> page 8 */
+                 0     0   0    0    0    0    0    1    1    0      0     0   0      L      L      L      L         L         L         H         H     /* data, seg 0x40 -> page0, flash */
+                 0     0   0    0    0    0    0    1    1    1      0     0   0      L      L      L      L         L         L         H         H     /* instruction, seg 0x40 -> page0, flash */
+                 0     0   0    0    0    0    0    0    1    0      0     1   0      H      H      H      H         L         L         H         H     /* BOOT data, seg 0 -> page F on flash*/
+                 0     0   0    0    0    0    0    0    1    1      0     1   0      H      H      H      H         L         L         H         H     /* BOOT instruction, seg 0 -> page F on flash*/
+                 0     0   0    0    0    0    1    1    1    0      0     1   0      H      H      H      H         L         L         H         H     /* BOOT data, seg 0x60 -> page F on flash*/
+                 0     0   0    0    0    0    1    1    1    1      0     1   0      H      H      H      H         L         L         H         H     /* BOOT instruction, seg 0x60 -> page F on flash*/
+                 0     0   0    0    0    0    1    1    1    0      0     0   0      H      H      H      H         L         L         H         H     /* !BOOT data, seg 0x60 -> page F on flash*/
+                 0     0   0    0    0    0    1    1    1    1      0     0   0      H      H      H      H         L         L         H         H     /* !BOOT instruction, seg 0x60 -> page F on flash*/

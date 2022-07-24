@@ -1,0 +1,25 @@
+name bus;
+device g22v10;
+partno x;
+date 1/1/1980;
+designer smbaker;
+company sbsoftware;
+revision 1;
+assembly x;
+location x;
+
+/* !RX==h will send data from CPU to device */
+
+/* TODO: BUSAK should tri-state the outputs */
+
+ORDER:       BUSAK, !MREQ, !WRITE, !DS, !AS, ST3, ST2, ST1, ST0, A6, A5, A4, !MR, !MW, !IOR, !IOW, !SIOCS, !PIOCS, !IDECS0, !IOREQ, !INTACK, !RX;
+VECTORS:         0      1       0    0    0    0    0    1    0   0   0   0    H    H     H     L       L       H        H       L        H    H     /* IO write to SIO */
+                 0      1       1    0    0    0    0    1    0   0   0   0    H    H     L     H       L       H        H       L        H    L     /* IO read from SIO */
+                 0      1       0    0    0    0    0    1    0   0   0   1    H    H     H     L       H       L        H       L        H    H     /* IO write to PIO */
+                 0      1       1    0    0    0    0    1    0   0   0   1    H    H     L     H       H       L        H       L        H    L     /* IO read from PIO */
+                 0      1       0    0    0    0    0    1    0   0   1   0    H    H     H     L       H       H        L       L        H    H     /* IO write to IDE */
+                 0      1       1    0    0    0    0    1    0   0   1   0    H    H     L     H       H       H        L       L        H    L     /* IO read from IDE */
+                 0      1       1    0    0    1    1    0    0   0   0   0    H    H     H     H       H       H        H       H        H    L     /* state is not io request */
+                 0      1       1    0    0    0    1    1    0   0   0   0    H    H     H     H       H       H        H       H        L    L     /* state is INTACK */
+                 0      0       0    0    0    1    1    0    0   0   0   0    H    L     H     H       H       H        H       H        H    H     /* memory write */
+                 0      0       1    0    0    1    1    0    0   0   0   0    L    H     H     H       H       H        H       H        H    L     /* memory read */
