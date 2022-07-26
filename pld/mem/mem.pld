@@ -81,46 +81,46 @@ FIELD input = [SN8..SN0];
 FIELD output = [PAGE3..PAGE0];
 TABLE input => output {
 /* I-Mode: segments 00-0F RAM in combined I/D */
-00 => 10; 01 => 11; 02 => 12; 03 => 13; 
-04 => 14; 05 => 15; 06 => 16; 07 => 17; 
-08 => 18; 09 => 19; 0A => 1A; 0B => 1B; 
-0C => 1C; 0D => 1D; 0E => 1E; 0F => 1F; 
-
-/* D-Mode: segments 00-0F RAM in combined I/D */
 80 => 10; 81 => 11; 82 => 12; 83 => 13; 
 84 => 14; 85 => 15; 86 => 16; 87 => 17; 
 88 => 18; 89 => 19; 8A => 1A; 8B => 1B; 
 8C => 1C; 8D => 1D; 8E => 1E; 8F => 1F; 
 
+/* D-Mode: segments 00-0F RAM in combined I/D */
+00 => 10; 01 => 11; 02 => 12; 03 => 13; 
+04 => 14; 05 => 15; 06 => 16; 07 => 17; 
+08 => 18; 09 => 19; 0A => 1A; 0B => 1B; 
+0C => 1C; 0D => 1D; 0E => 1E; 0F => 1F; 
+
 /* I-Mode: segments 10-17 RAM in separate I/D */
-10 => 10; 11 => 11; 12 => 12; 13 => 13; 
-14 => 14; 15 => 15; 16 => 16; 17 => 17; 
+90 => 10; 91 => 11; 92 => 12; 93 => 13; 
+94 => 14; 95 => 15; 96 => 16; 97 => 17; 
 
 /* D-Mode: segments 10-17 RAM in separate I/D */
-90 => 18; 91 => 19; 92 => 1A; 93 => 1B; 
-94 => 1C; 95 => 1D; 96 => 1E; 97 => 1F; 
+10 => 18; 11 => 19; 12 => 1A; 13 => 1B; 
+14 => 1C; 15 => 1D; 16 => 1E; 17 => 1F; 
 
 /* D-Mode: segments 18-1F RAM shadows of the I */
-98 => 10; 99 => 11; 9A => 12; 9B => 13; 
-9C => 14; 9D => 15; 9E => 16; 9F => 17; 
+18 => 10; 19 => 11; 1A => 12; 1B => 13; 
+1C => 14; 1D => 15; 1E => 16; 1F => 17;
 
 /* I-Mode: segments 40-4F FLASH in combined I/D */
+C0 => 20; C1 => 21; C2 => 22; C3 => 23; 
+C4 => 24; C5 => 25; C6 => 26; C7 => 27; 
+C8 => 28; C9 => 29; CA => 2A; CB => 2B; 
+CC => 2C; CD => 2D; CE => 2E; CF => 2F; 
+
+/* D-Mode: segments 40-4F FLASH in combined I/D */
 40 => 20; 41 => 21; 42 => 22; 43 => 23; 
 44 => 24; 45 => 25; 46 => 26; 47 => 27; 
 48 => 28; 49 => 29; 4A => 2A; 4B => 2B; 
 4C => 2C; 4D => 2D; 4E => 2E; 4F => 2F; 
 
-/* D-Mode: segments 50-5F FLASH in combined I/D */
-D0 => 20; D1 => 21; D2 => 22; D3 => 23; 
-D4 => 24; D5 => 25; D6 => 26; D7 => 27; 
-D8 => 28; D9 => 29; DA => 2A; DB => 2B; 
-DC => 2C; DD => 2D; DE => 2E; DF => 2F; 
-
 /* D-Mode and I-Mode: segments 60-60 FLASH for boot segment on rom page 15*/
-E0 => 2F; 60 => 2F; 1E0 => 2F; 160 => 2F;
+60 => 2F; E0 => 2F; 160 => 2F; 1E0 => 2F;
 
 /* D-Mode and I-Mode: segments 00-00 FLASH for boot initialization vector on rom page 15*/
-180 => 2F; 100 => 2F;
+100 => 2F; 180 => 2F;
 }
 
 RAMLOCS = !BOOT & !SN6 & (READ # WORD # A0);

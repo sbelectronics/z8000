@@ -21,8 +21,12 @@ VECTORS:         0     0   0    0    0    0    0    0    1    0      0     0   0
                  0     0   0    0    0    0    0    0    1    1      0     0   0      L      L      L      L         H         H         L         L     /* instruction, seg 0 */
                  0     1   0    0    0    0    0    0    1    0      0     0   0      L      L      L      H         H         H         L         L     /* data, seg 1 */
                  0     1   0    0    0    0    0    0    1    0      0     0   0      L      L      L      H         H         H         L         L     /* instruction, seg 1 */
-                 0     0   0    0    0    1    0    0    1    0      0     0   0      L      L      L      L         H         H         L         L     /* data, seg 0x10 -> page 0 */
-                 0     0   0    0    0    1    0    0    1    1      0     0   0      H      L      L      L         H         H         L         L     /* instruction, seg 0x10 -> page 8 */
+                 0     0   0    0    0    1    0    0    1    0      0     0   0      H      L      L      L         H         H         L         L     /* data, seg 0x10 -> page 8 */
+                 0     1   0    0    0    1    0    0    1    0      0     0   0      H      L      L      H         H         H         L         L     /* data, seg 0x11 -> page 9 */
+                 0     0   0    0    0    1    0    0    1    1      0     0   0      L      L      L      L         H         H         L         L     /* instruction, seg 0x10 -> page 0 */
+                 0     1   0    0    0    1    0    0    1    1      0     0   0      L      L      L      H         H         H         L         L     /* instruction, seg 0x11 -> page 1 */
+                 0     0   0    0    1    1    0    0    1    0      0     0   0      L      L      L      L         H         H         L         L     /* data shadow of i, seg 0x18 -> page 0 */
+                 0     1   0    0    1    1    0    0    1    0      0     0   0      L      L      L      H         H         H         L         L     /* data shadow of i, seg 0x19 -> page 1 */                 
                  0     0   0    0    0    0    0    1    1    0      0     0   0      L      L      L      L         L         L         H         H     /* data, seg 0x40 -> page0, flash */
                  0     0   0    0    0    0    0    1    1    1      0     0   0      L      L      L      L         L         L         H         H     /* instruction, seg 0x40 -> page0, flash */
                  0     0   0    0    0    0    0    0    1    0      0     1   0      H      H      H      H         L         L         H         H     /* BOOT data, seg 0 -> page F on flash*/
