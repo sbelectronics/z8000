@@ -7,6 +7,15 @@ This is a set of boards that can be assembled to make Z8000 computer,
 running the CP/M-8000 distribution. For a detailed writeup, see my
 website at http://www.smbaker/com/
 
+Prequisites
+
+* z8kgcc
+* cpmtools
+
+Building
+
+Run `make asm` and then `make rom`.
+
 Acknowledgements:
 
 * Digital Corporation, CP/M-8k Source Code

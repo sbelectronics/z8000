@@ -7,14 +7,7 @@
 ! *
 ! * 20200211 4sun5bu -- modified for assembling with GNU as 
 
-! ******************************************************************************
-!	if ID_SPLIT = 1, I and D space split supported		
-! ******************************************************************************	
-    .equ PLATFORM_SMBAKER, 1
-	.equ ID_SPLIT, 1
-	.equ ENABLE_ROMDISK, 1
-	.equ ENABLE_RAMDISK, 1
-	.equ ENABLE_FLOPPY, 0
+    .include "../common/board.s"
 
 ! ******************************************************************************
 ! *

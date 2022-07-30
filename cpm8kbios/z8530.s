@@ -9,6 +9,8 @@
 
     .global  scc_init, scc_out, scc_in, scc_status
 
+    .include "biosdef.s"
+
     unsegm
     sect .text
 
@@ -75,7 +77,7 @@ scccmds:
     .byte   3, 0xe0     ! Receive  8bit/char 
     .byte   5, 0xe2     ! Send 8bit/char dtr rts
     .byte   11, 0x50    ! BG use for receiver and transmiter
-    .byte   12, 37      ! 4800bps at 6MHz clock
+	.byte	12, SCC_BRG ! see ../common/board.s
     .byte   13, 00
     .byte   14, 0x02    ! PCLK for BG
     .byte   14, 0x03    ! BG enable
