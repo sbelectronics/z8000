@@ -100,11 +100,16 @@ kludge:
 	lda	r4, bootmsg
 	call	puts
 
-    ! TODO: smbaker: put this back when add CF support back in
-	! call	disk_init	! set up disk drive
+    .if ENABLE_ROMDISK == 1
+    call    flashinit
+	.endif
 
     .if ENABLE_RAMDISK == 1
     call    ramdiskinit
+	.endif
+
+    .if ENABLE_CFDISK
+	call	disk_init	! set up disk drive
 	.endif
 
 	call	biosinit	! set up C part of Bios
@@ -128,5 +133,5 @@ _wboot:
 !------------------------------------------------------------------------------
 	sect	.rodata
 bootmsg:
-	.asciz	"\r\nCP/M-8000 BIOS ver.0.11.smbaker1" 
+	.asciz	"\r\nCP/M-8000 BIOS ver.0.11.smbaker1\r\n" 
 

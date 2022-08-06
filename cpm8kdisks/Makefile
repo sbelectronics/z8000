@@ -2,10 +2,20 @@
 
 .PHONY: diskimg
 dskimg:
+	rm -f romdisk/*~
+	rm -f romdisk/#*#
+	rm -f diska/*~
+	rm -f diskb/*~
+	rm -f diskc/*~
+	rm -f diskd/*~
+	rm -rf holding
+	mkdir holding
+	cp romdisk/* holding/
+	cp games/*.z8k games/*.c holding/
+	cp basic/*.c basic/*.h basic/*.8kn holding/
+	python ./addeof.py holding/*.h holding/*.c holding/*.sub holding/*.8kn
 	mkfs.cpm -f cpm8krom4k -b ../cpm8kbios/cpm8k.bin romdisk.img 
-	cpmcp -f cpm8krom4k romdisk.img romdisk/*.* 0:
-	cpmcp -f cpm8krom4k romdisk.img games/*.z8k 0:
-	cpmcp -f cpm8krom4k romdisk.img games/*.c 0:
+	cpmcp -f cpm8krom4k romdisk.img holding/* 0:
 	mkfs.cpm -f cpm8k -b ../cpm8kbios/cpm8k.bin diska.img 
 	cpmcp -f cpm8k diska.img diska/*.* 0:
 	mkfs.cpm -f cpm8k diskb.img
@@ -31,6 +41,7 @@ fixlf:
 	python ./fixlf.py < romdisk_fix/signal.h > romdisk/signal.h
 	python ./fixlf.py < romdisk_fix/stdio.h > romdisk/stdio.h
 	python ./fixlf.py < romdisk_fix/xout.h > romdisk/xout.h
+	python ./fixlf.py < romdisk_fix/asz8k.pd > romdisk/asz8k.pd
 
 .PHONY: clean
 clean:

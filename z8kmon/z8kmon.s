@@ -72,6 +72,7 @@ lp3:
 	call    bcmnd_usage
 	call    memtest_usage
 	call    cputest_usage
+	call    romtest_usage
 	jr	loop
 cmnderr:	
 	lda	rr4, errmsg
@@ -104,7 +105,9 @@ cmnd_tbl:
 	.byte   'M', ' '
 	.long   memtest_cmnd
 	.byte   'T', ' '
-	.long   cputest_cmnd	
+	.long   cputest_cmnd
+	.byte   'R', ' '
+	.long   romtest_cmnd
 tbl_end:
 
 bootmsg:

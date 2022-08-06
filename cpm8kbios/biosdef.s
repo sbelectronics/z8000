@@ -125,7 +125,7 @@
 !------------------------------------------------------------------------------
 !  Disk parameter definitions
 !
-	.equ	MAXDSK, ENABLE_ROMDISK + ENABLE_RAMDISK + ENABLE_FLOPPY + 4  ! number of disks
+	.equ	MAXDSK_INITIAL, ENABLE_ROMDISK + ENABLE_RAMDISK + ENABLE_FLOPPY + 4  ! number of disks
 
     .if ENABLE_ROMDISK == 1
 	.equ    ROMDISK_ID, 0                                                ! disk number of first romdisk
@@ -143,9 +143,14 @@
 	.equ    FLOPDISK_ID, ENABLE_ROMDISK + ENABLE_RAMDISK                 ! disk number of first floppy
 	.else
 	.equ    FLOPDISK_ID, 0xFF	
-	.endif	
+	.endif
 
 	.equ    FIRSTIDE, ENABLE_ROMDISK + ENABLE_RAMDISK + ENABLE_FLOPPY    ! disk number of the first IDE disk
+
+    .equ    ROMDISK_LETTER, ROMDISK_ID + 'A'
+    .equ    RAMDISK_LETTER, RAMDISK_ID + 'A'
+	.equ    FLOPDISK_LETTER, FLOPDISK_ID + 'A'	
+	.equ    FIRSTIDE_LETTER, FIRSTIDE + 'A'
 
 	.equ	SECSZ, 128                                                   ! sector size
 	.equ	PSECSZ, 512                                                  ! for fetching blocks to/from IDE

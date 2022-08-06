@@ -10,7 +10,7 @@
 	.extern puts, puthex16, putln
 	.extern setdma, settrk, setsec
 
-	.global	flashrd, flashwr, flashflush
+	.global	flashrd, flashwr, flashflush, flashinit
 	.global ramdiskrd, ramdiskwr, ramdiskflush, ramdiskinit
 
 	unsegm
@@ -59,6 +59,15 @@ flashwr:
 flashflush:
     ld       r7, 0            ! nothing here to do...
 	ret
+
+! erase the ramdisk. Assumes all dir entries are in the first segment
+flashinit:
+	ldb     rl5, #ROMDISK_LETTER
+	call    scc_out
+	lda     r4, romdiskmsg
+	call    puts	
+	ret
+
 
 !------------------------------------------------------------------------------
 !  ramdiskrd
@@ -128,6 +137,10 @@ nextbyte:
 	inc      r3, #1
 	djnz     r7, nextbyte
 	NONSEG
+	ldb     rl5, #RAMDISK_LETTER
+	call    scc_out
+	lda     r4, ramdiskmsg
+	call    puts	
 	ret
 
 
@@ -169,11 +182,11 @@ convOffsetRamDisk:
 ramdisk_map:
     .byte   4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15   ! hole at page 9 because that's our Data split-I/D seg
 
+romdiskmsg:
+    .asciz  ": ROM disk\r\n"
+ramdiskmsg:
+    .asciz  ": RAM disk\r\n"
+
 rdrammsg:
 	.asciz	"Ram Read offset "	
-rdlbamsg:
-	.asciz	"Flash Read offset "
-rdaddrmsg:
-	.asciz	"Flash Read addr "	
-rdretmsg:
-	.asciz	"Flash Read return\r\n" 
+

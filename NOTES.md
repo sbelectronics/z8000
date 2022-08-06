@@ -95,3 +95,13 @@ Memtbl is described in the systemGuide
 SCC external clock
     WR11 D7=0   ; 0 = not a crystal oscillator
     WR14 D1=0   ; use RTxC rather than PCLK
+
+Compile Stuff
+  zcc -c -m hello.c
+  a:ld8k -w -s -o hello.z8k hello.o -lcpm
+
+  zcc -c -m wump.c
+  a:ld8k -w -s -o wump.z8k wump.o startup.o -lcpm
+
+Resources for the basic interpreter project
+  * http://www.nicholson.com/rhn/basic/basic.info.html

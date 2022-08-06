@@ -11,6 +11,7 @@
 	.global	func13, func14, func16, func21, flush
 	.global	secbLBA, secbvalid, secbdirty
 	.global setdma, settrk, setsec                  ! for flashio.s
+	.global maxdsk, sentinel, secbuf                ! for diskio.s
 
 	.include "biosdef.s"
 	
@@ -30,7 +31,7 @@ func8:
 !   Select Disk Drive	
 
 func9:
-	cp	r5, #MAXDSK
+	cp	r5, maxdsk
 	jr	nc, 1f
 	ld	setdsk, r5
 	sll	r5, #4
@@ -83,8 +84,10 @@ func13:
 	testb	secbvalid
 	jr	nz, 2f
 1:
-	pushl	@r15, rr2	! read the sector into the buffer
+	pushl	@r15, rr2	 ! read the sector into the buffer
 	call	flush
+	ld      r2, setdsk   ! save the current disk
+	ld      secbDisk, r2 ! ... into secbDisk
 	popl	rr2, @r15
 	ldl	    secbLBA, rr2
 	lda	    r4, secbuf
@@ -114,39 +117,57 @@ func14:
     cp      r2, #ROMDISK_ID
 	jp      eq, flashwr
     cp      r2, #RAMDISK_ID
-	jp      eq, ramdiskwr	
+	jp      eq, ramdiskwr
+
+!	pushl    @r15, rr0
+!	pushl    @r15, rr4
+!	lda      r4, writemsg
+!	call     puts
+!	ld       r5, r2
+!	call     puthex16
+!	call     putln
+!	popl     rr4, @r15
+!	popl     rr0, @r15	
 
 	push 	@r15, r5
 	call	convLBA
-	cpl	rr2, secbLBA
-	jr	ne, 1f
+	cpl	    rr2, secbLBA
+	jr	    ne, 1f
 	testb	secbvalid
-	jr	nz, 2f
+	jr	    nz, 2f
 1:
-	pushl	@r15, rr2	! read the sector into the buffer
+	pushl	@r15, rr2	  ! read the sector into the buffer
 	call	flush
+	ld      r2, setdsk    ! save the current disk
+	ld      secbDisk, r2  ! ... into secbDisk
 	popl	rr2, @r15
 	ldl	    secbLBA, rr2
 	lda	    r4, secbuf
 	call	diskrd
 	ldb	    secbvalid, #1
 2:
-	ld	r1, setsec
-	and	r1, #0x0003
-	sll	r1, #7		! 128x
-	lda	r7, secbuf(r1)
-	ld	r6, _sysseg	! rr6 - secbuf address
-	ldl	rr4, setdma
-	ld	r3, #SECSZ
+	ld	    r1, setsec
+	and	    r1, #0x0003
+	sll	    r1, #7		! 128x
+	lda	    r7, secbuf(r1)
+	ld	    r6, _sysseg	! rr6 - secbuf address
+	ldl     rr4, setdma
+	ld	    r3, #SECSZ
 	SEG
 	ldirb	@r6, @r4, r3
 	NONSEG
-	ldb	secbdirty, #1
+	ldb	    secbdirty, #1
 	pop 	r5, @r15
-	cp	r5, #1
-	jr	ne, 3f
+	cp	    r5, #1
+	jr	    ne, 3f      ! XXX smbaker -- always flush
 	call	flush
 3:
+!	pushl    @r15, rr0
+!	pushl    @r15, rr4
+!	lda      r4, dwmsg
+!	call     puts
+!	popl     rr4, @r15
+!	popl     rr0, @r15
 	clr	r7
 	ret
 
@@ -180,21 +201,40 @@ func21:
 !   write back the secbuf to the disk
 
 flush:
-    ld      r2, setdsk
-    cp      r2, #ROMDISK_ID
-	jp      eq, flashflush
-    cp      r2, #RAMDISK_ID
-	jp      eq, ramdiskflush	
-
 	testb	secbdirty
 	ret	z		! not modified
 	testb	secbvalid
 	ret	z		! not valid
-	ldl	rr2, secbLBA
-	lda	r4, secbuf
+
+    ld      r2, secbDisk
+    cp      r2, #ROMDISK_ID
+	jp      eq, flashflush
+    cp      r2, #RAMDISK_ID
+	jp      eq, ramdiskflush
+
+!	pushl    @r15, rr0
+!	pushl    @r15, rr4
+!	lda      r4, flushmsg
+!	call     puts
+!	ld       r5, r2
+!	call     puthex16
+!	call     putln
+!	popl     rr4, @r15
+!	popl     rr0, @r15
+
+	ldl	    rr2, secbLBA
+	lda	    r4, secbuf
 	call	diskwr
 	clrb	secbdirty
 	clrb	secbvalid
+
+!	pushl    @r15, rr0
+!	pushl    @r15, rr4
+!	lda      r4, dfmsg
+!	call     puts
+!	popl     rr4, @r15
+!	popl     rr0, @r15
+
 	ret
 
 !------------------------------------------------------------------------------
@@ -212,9 +252,11 @@ convLBA:
 	add	r3, r2
 	and	r3, #0x3fff
 	ld	r2, setdsk
+	sub r2, #FIRSTIDE
 	sll	r2, #14
 	add	r3, r2
 	ld	r2, setdsk
+	sub r2, #FIRSTIDE
 	srl	r2, #2
 	ret
 
@@ -222,6 +264,11 @@ convLBA:
 	sect .data
 	.even
 !------------------------------------------------------------------------------
+
+! Preinitialized variables
+maxdsk:
+    .word MAXDSK_INITIAL
+
 ! Sector Translate Table
 !  These parameters are based on the CP/M BIOS writen by Mr.Grant's.
 !  Refer to "Grant's homebuilt electronics" Web page.
@@ -347,7 +394,11 @@ alv4:
 alv5:
 	.space	257
 alv6:
-	.space	257	
+	.space	257
+
+! stuff below better freakin' be word-alinged, or else.
+slack:
+    .space  1
 
 dirbuf:
 	.space SECSZ
@@ -372,9 +423,14 @@ setdma:
 !
 secbuf:
 	.space	PSECSZ
-	
+
+sentinel:
+    .space  2
+
 secbLBA:
 	.space	4
+secbDisk:
+    .space  2
 	
 secbvalid:
 	.space	1
@@ -387,3 +443,12 @@ secbdsk:
 secbsec:
 	.space	2
 
+sect .rodata
+  flushmsg:
+     .asciz "Flush: "
+  dfmsg:
+     .asciz "Doneflush\r\n"
+  writemsg:
+     .asciz "Write: "
+  dwmsg:
+     .asciz "DoneWrite\r\n"

@@ -27,12 +27,18 @@
 	! the crystal you're using for the SCC, not the crystal for the CPU 
 
 	.equ SCC_BRG, SCC_BRG_9600_73728MHz
+	!.equ SCC_BRG, SCC_BRG_9600_49152MHz
 
 ! ******************************************************************************
 !	if ID_SPLIT = 1, I and D space split supported		
 ! ******************************************************************************	
     .equ PLATFORM_SMBAKER, 1
 	.equ ID_SPLIT, 1
+
+! ******************************************************************************
+!	Enable the disks you want to use
+! ******************************************************************************	
 	.equ ENABLE_ROMDISK, 1
 	.equ ENABLE_RAMDISK, 1
 	.equ ENABLE_FLOPPY, 0
+    .equ ENABLE_CFDISK, 1

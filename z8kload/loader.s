@@ -15,12 +15,16 @@
 
         sect .rstvec
 
-        .word   0x0000                  ! reserved
-        .word   0xC000                  ! FCW: Segmented Mode, System Mode
-        .word   0x6000                  ! SEG = 60
-        .word   _start                  ! OFS
+        .word   0x0000                  ! 00: reserved
+        .word   0xC000                  ! 02: FCW: Segmented Mode, System Mode
+        .word   0x6000                  ! 04: SEG = 60
+        .word   _start                  ! 06: OFS
 
-_start:
+        ! The checksum will be overwritten by checksum.py in the rom/ Makefile.
+
+        .word 0x1234                    ! 08: 16-bit checksum.
+
+_start:                                 ! should be at offset 0C
         nop                             ! Make very sure A3 gets tripped
         nop				                ! .. so we exit boot mode
         nop
