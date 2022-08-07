@@ -94,6 +94,8 @@ class Supervisor:
         self.log("busack is received")
         self.ixAddress.set_iodir(0, 0x00)           # A0..A15 outputs
         self.ixAddress.set_iodir(1, 0x00)
+        self.ixData.set_iodir(0, 0xFF)           # D0..D15 inputs
+        self.ixData.set_iodir(1, 0xFF)        
 
         self.ixControl.set_gpio(0,  RAML | RAMH | ROML | ROMH) # chip selects high. A16..A19 low
         self.ixControl.set_iodir(0, 0x00)                     # A16..A19 and CS outputs
