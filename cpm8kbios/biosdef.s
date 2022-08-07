@@ -125,7 +125,7 @@
 !------------------------------------------------------------------------------
 !  Disk parameter definitions
 !
-	.equ	MAXDSK_INITIAL, ENABLE_ROMDISK + ENABLE_RAMDISK + ENABLE_FLOPPY + 4  ! number of disks
+	.equ	MAXDSK_INITIAL, ENABLE_ROMDISK + ENABLE_RAMDISK + ENABLE_FLOPPY + ENABLE_SUPDISK + 4  ! number of disks
 
     .if ENABLE_ROMDISK == 1
 	.equ    ROMDISK_ID, 0                                                ! disk number of first romdisk
@@ -145,11 +145,18 @@
 	.equ    FLOPDISK_ID, 0xFF	
 	.endif
 
-	.equ    FIRSTIDE, ENABLE_ROMDISK + ENABLE_RAMDISK + ENABLE_FLOPPY    ! disk number of the first IDE disk
+    .if ENABLE_SUPDISK == 1
+	.equ    SUPDISK_ID, ENABLE_ROMDISK + ENABLE_RAMDISK + ENABLE_FLOPPY  ! disk number of first floppy
+	.else
+	.equ    SUPDISK_ID, 0xFF
+	.endif	
+
+	.equ    FIRSTIDE, ENABLE_ROMDISK + ENABLE_RAMDISK + ENABLE_FLOPPY + ENABLE_SUPDISK   ! disk number of the first IDE disk
 
     .equ    ROMDISK_LETTER, ROMDISK_ID + 'A'
     .equ    RAMDISK_LETTER, RAMDISK_ID + 'A'
-	.equ    FLOPDISK_LETTER, FLOPDISK_ID + 'A'	
+	.equ    FLOPDISK_LETTER, FLOPDISK_ID + 'A'
+	.equ    SUPDISK_LETTER, SUPDISK_ID + 'A'		
 	.equ    FIRSTIDE_LETTER, FIRSTIDE + 'A'
 
 	.equ	SECSZ, 128                                                   ! sector size

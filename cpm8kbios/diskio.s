@@ -233,4 +233,4 @@ nodiskmsg:
 idediskmsg:
     .asciz  ": CompactFlash disk\r\n"
 notAllrightMsg:
-    .asciz  "Secbuf is not aligned. It's not gonna be alright\r\n"
+    .asciz  "Secbuf is not aligned. It's not gonna be allright\r\n"

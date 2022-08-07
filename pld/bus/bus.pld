@@ -49,19 +49,31 @@ READ = !WRITE;
 
 /* TODO: BUSAK should tri-state the outputs */
 
-IOREQ = !BUSAK & STATUS:STATUS_STANDARD_IO;
-SIOCS = !BUSAK & IOREQ & MEMADR:SIO_ADDR;
-PIOCS = !BUSAK & IOREQ & MEMADR:PIO_ADDR;
-IDECS0 = !BUSAK & IOREQ & MEMADR:IDE0_ADDR;
+IOREQ = STATUS:STATUS_STANDARD_IO;
+SIOCS = IOREQ & MEMADR:SIO_ADDR;
+PIOCS = IOREQ & MEMADR:PIO_ADDR;
+IDECS0 = IOREQ & MEMADR:IDE0_ADDR;
 
-IOR = !BUSAK & IOREQ & READ & DS;
-IOW = !BUSAK & IOREQ & WRITE & DS;
+IOR = IOREQ & READ & DS;
+IOW = IOREQ & WRITE & DS;
 
-MR = !BUSAK & MREQ & READ & DS;
-MW = !BUSAK & MREQ & WRITE & DS;
+MR = MREQ & READ & DS;
+MW = MREQ & WRITE & DS;
 
 RX = !BUSAK & DS & READ;
 
 /* oddity: 4sun5bu board asserts NVI from SCC, but acks with VI */
 /*         We will ack with NVI */
 INTACK = STATUS:STATUS_INTACK_NVI;
+
+/* tristate the outputs if someone else owns the bus */
+IOREQ.OE = !BUSAK;
+SIOCS.OE = !BUSAK;
+PIOCS.OE = !BUSAK;
+IDECS0.OE = !BUSAK;
+IOR.OE = !BUSAK;
+IOW.OE = !BUSAK;
+MR.OE = !BUSAK;
+MW.OE = !BUSAK;
+INTACK.OE = !BUSAK;
+

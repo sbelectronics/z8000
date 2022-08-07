@@ -108,6 +108,10 @@ kludge:
     call    ramdiskinit
 	.endif
 
+    .if ENABLE_SUPDISK == 1
+    call    supdiskinit
+	.endif	
+
     .if ENABLE_CFDISK
 	call	disk_init	! set up disk drive
 	.endif

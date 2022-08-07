@@ -77,6 +77,8 @@ func13:
 	jp      eq, flashrd
     cp      r2, #RAMDISK_ID
 	jp      eq, ramdiskrd
+    cp      r2, #SUPDISK_ID
+	jp      eq, supdiskrd	
 
 	call	convLBA
 	cpl	rr2, secbLBA
@@ -118,6 +120,8 @@ func14:
 	jp      eq, flashwr
     cp      r2, #RAMDISK_ID
 	jp      eq, ramdiskwr
+    cp      r2, #SUPDISK_ID
+	jp      eq, supdiskwr	
 
 !	pushl    @r15, rr0
 !	pushl    @r15, rr4
@@ -211,6 +215,8 @@ flush:
 	jp      eq, flashflush
     cp      r2, #RAMDISK_ID
 	jp      eq, ramdiskflush
+    cp      r2, #SUPDISK_ID
+	jp      eq, supdiskflush	
 
 !	pushl    @r15, rr0
 !	pushl    @r15, rr4
@@ -353,12 +359,16 @@ dphtbl:
 
     .if ENABLE_FLOPPY == 1
 	! TODO ...
-	.endif	
+	.endif
 
+    .if ENABLE_SUPDISK == 1
 	.word	0, 0, 0, 0, dirbuf, dpb_ide, csv3, alv3
+	.endif		
+
 	.word	0, 0, 0, 0, dirbuf, dpb_ide, csv4, alv4
 	.word	0, 0, 0, 0, dirbuf, dpb_ide, csv5, alv5
 	.word	0, 0, 0, 0, dirbuf, dpb_ide, csv6, alv6
+	.word	0, 0, 0, 0, dirbuf, dpb_ide, csv7, alv7
 
 !------------------------------------------------------------------------------
 	sect .bss
@@ -380,6 +390,8 @@ csv5:
 	.space	128
 csv6:
 	.space	128	
+csv7:
+	.space	128		
 	
 alv0:
 	.space	257
@@ -395,10 +407,12 @@ alv5:
 	.space	257
 alv6:
 	.space	257
+alv7:
+	.space	257	
 
 ! stuff below better freakin' be word-alinged, or else.
-slack:
-    .space  1
+!slack:
+!    .space  1
 
 dirbuf:
 	.space SECSZ

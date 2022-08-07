@@ -8,7 +8,7 @@ OBJCOPY = z8k-coff-objcopy
 
 objs = biosboot.o biosif.o biostrap.o biosmem.o\
 	bios.o bioscall1.o bioscall2.o bioscall3.o bioscall4.o\
-	z8530.o flashio.o diskio.o put.o\
+	z8530.o flashio.o diskio.o supio.o put.o\
 
 .PHONY: all
 all: cpm8k.bin
