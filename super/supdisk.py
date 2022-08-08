@@ -1,5 +1,5 @@
 from __future__ import print_function
-from supervisor import *
+from supervisor_direct import SupervisorDirect
 
 import smbus
 import string
@@ -15,33 +15,37 @@ CMD_INIT = 0
 CMD_READ = 1
 CMD_WRITE = 2
 
-class SuperDisk(Supervisor):
-    def __init__(self, bus, addr, verbose):
-        Supervisor.__init__(self, bus, addr, verbose)
+class SuperDisk(SupervisorDirect):
+    def __init__(self, verbose): #, bus, addr, verbose):
+        SupervisorDirect.__init__(self, verbose)
         self.superAddress = self.find_super()
 
-        self.f = open("sup.img","r+b")
+        self.f = open("sup.img", "r+b")
 
     def run(self):
         while True:
             cmd = self.get_cmd()
             if cmd == CMD_READ:
-                #tstart=time.time()
+                if self.verbose:
+                  tstart=time.time()
                 self.read()
-                #print(time.time() - tstart)
+                if self.verbose:
+                  print(time.time() - tstart)
             elif cmd == CMD_WRITE:
                 self.write()
             elif cmd == CMD_INIT:
                 self.set_active()
             else:
-                time.sleep(0.01)
+                time.sleep(0.02)
 
     def read(self):
         try:
             self.take_bus()
             fileAddr = (self.mem_read(self.superAddress + ADDR_OFS) << 16) | \
                         self.mem_read(self.superAddress + ADDR_OFS+2)
-            print("Read at %08X" % fileAddr)
+
+            if self.verbose:
+              print("Read at %08X" % fileAddr)
 
             self.f.seek(fileAddr*128)
             buf = self.f.read(128)
@@ -58,7 +62,9 @@ class SuperDisk(Supervisor):
                     self.mem_write_fast(addr, w)
                     addr += 2
             self.mem_write_end()
-            print("sent %d" % (addr-self.superAddress-BUF_OFS))
+
+            if self.verbose:
+              print("sent %d" % (addr-self.superAddress-BUF_OFS))
 
             # Let CPM-8K know we're done
             self.mem_write(self.superAddress + CMD_OFS, 0x81)
@@ -70,7 +76,9 @@ class SuperDisk(Supervisor):
             self.take_bus()
             fileAddr = (self.mem_read(self.superAddress + ADDR_OFS) << 16) | \
                         self.mem_read(self.superAddress + ADDR_OFS+2)
-            print("Write at %08X" % fileAddr)
+
+            if self.verbose:                        
+              print("Write at %08X" % fileAddr)
 
             buf = bytearray(128)
             addr = self.superAddress + BUF_OFS
@@ -81,8 +89,10 @@ class SuperDisk(Supervisor):
                 buf[i*2+1] = w & 0xFF
                 addr += 2
             self.mem_read_end()
-            print("received %d" % (addr-self.superAddress-BUF_OFS))
-            #print(hex_escape(buf))
+
+            if self.verbose:
+              print("received %d" % (addr-self.superAddress-BUF_OFS))
+
             self.f.seek(fileAddr*128)
             self.f.write(buf)
 
@@ -140,8 +150,10 @@ def main():
 
     (options, args) = parser.parse_args(sys.argv[1:])
 
-    bus = smbus.SMBus(1)
-    super = SuperDisk(bus, 0x20, options.verbose)
+    #bus = smbus.SMBus(1)
+    #super = SuperDisk(bus, 0x20, options.verbose)
+
+    super = SuperDisk(options.verbose)
 
     if super.superAddress == None:
         print("Super not found in memory")
