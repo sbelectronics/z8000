@@ -1,0 +1,27 @@
+; Turn on the LED that's attached to the M0 line
+
+; a:asz8k -o ledon.o ledon.8kn
+; a:ld8k -w -s -o ledon.z8k ledon.o
+
+    .global __start
+
+BDOS_SC	.equ	2		; BDOS system call
+EXIT	.equ	0		; BDOS exit request	
+
+__text     .sect
+
+__start:
+    jp     _ledon
+
+_ledon:
+	ld     r5, #62    ; privilege escalation to system mode
+	sc     #2
+	mset
+	ldctl  r0, FCW
+	res    r0, #15    ; turn off segmented mode
+	res    r0, #14    ; turn off system mode
+	ldctl  FCW, r0
+
+__exit:
+	ldk	r5, #EXIT	; User prog returns
+	sc	#BDOS_SC	;   here: warm boot
