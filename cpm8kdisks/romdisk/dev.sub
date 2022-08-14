@@ -1,0 +1,10 @@
+; copy stuff to b: necessary to build SW
+pip b:=a:*.c
+pip b:=a:*.h
+pip b:=a:*.o
+pip b:=a:*.a
+pip b:=a:zcc*.z8k
+pip b:=a:xcon.z8k
+pip b:=a:*.pd
+pip b:=a:*.8kn
+

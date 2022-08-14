@@ -1,0 +1,9 @@
+; Put zcc disk in a: and this disk in b:
+; make tictac.z8k
+zcc -c -s -m1 b:tictac.c
+;
+;  Remove the zcc disk and put in the ld8k disk!!
+;
+pause
+ld8k -w -s -o b:tictac.z8k startup.o b:tictac.o -lcpm
+

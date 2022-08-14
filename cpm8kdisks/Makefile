@@ -11,8 +11,9 @@ dskimg:
 	rm -rf holding
 	mkdir holding
 	cp romdisk/* holding/
-	cp games/*.z8k games/*.c holding/
-	cp basic/*.c basic/*.h basic/*.8kn holding/
+	cp ~/projects/misc/mojozork/zork1.dat holding/
+	cp games/*.z8k holding/
+	cp basic/*.z8k holding/
 	python ./addeof.py holding/*.h holding/*.c holding/*.sub holding/*.8kn
 	mkfs.cpm -f cpm8krom4k -b ../cpm8kbios/cpm8k.bin romdisk.img 
 	cpmcp -f cpm8krom4k romdisk.img holding/* 0:
@@ -42,6 +43,7 @@ fixlf:
 	python ./fixlf.py < romdisk_fix/stdio.h > romdisk/stdio.h
 	python ./fixlf.py < romdisk_fix/xout.h > romdisk/xout.h
 	python ./fixlf.py < romdisk_fix/asz8k.pd > romdisk/asz8k.pd
+	python ./fixlf.py < romdisk_fix/option.h > romdisk/option.h
 
 .PHONY: clean
 clean:

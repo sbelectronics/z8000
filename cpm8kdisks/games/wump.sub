@@ -1,0 +1,10 @@
+; compile and link wump game
+; put this disk in b: and zcc in a:
+; from A> B:WUMP.SUB
+zcc -c -m1 b:wump.c
+;
+;   At prompt, remove zcc disk and put in ld8k disk.
+;
+pause
+ld8k -w -s -o b:wump.z8k startup.o b:wump.o -lcpm
+
