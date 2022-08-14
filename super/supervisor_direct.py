@@ -39,6 +39,10 @@ class SupervisorDirect:
     def mem_write(self, addr, val):
         smbpi.supervisor_direct_ext.mem_write(addr, val)
 
+    def mem_write_buffer(self, addr, bytes):
+        smbpi.supervisor_direct_ext.mem_write_buffer(addr, bytes)
+
+
     def mem_write_start(self, addr):
         smbpi.supervisor_direct_ext.mem_write_start(addr)
 

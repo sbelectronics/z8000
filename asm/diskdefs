@@ -1,0 +1,32 @@
+diskdef cpm8k
+  seclen 128
+  tracks 512
+  sectrk 128
+  blocksize 4096
+  maxdir 512
+  skew 0
+  boottrk 2
+  os 2.2
+end
+
+diskdef cpm8krom2k
+  seclen 128
+  tracks 60
+  sectrk 128
+  blocksize 2048
+  maxdir 512
+  skew 0
+  boottrk 2
+  os 2.2
+end
+
+diskdef cpm8krom4k
+  seclen 128
+  tracks 60
+  sectrk 128
+  blocksize 4096
+  maxdir 512
+  skew 0
+  boottrk 2
+  os 2.2
+end

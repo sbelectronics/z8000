@@ -345,6 +345,21 @@ dpb_ramdisk:
 	.word	0	! CKS	: checksum
 	.word	0	! OFF	: Reserved track	
 
+! 512 tracks total. Two reserved tracks, for boot disk 
+dpb_supdisk:
+	.word	128	! SPT	: sectors per track
+	.byte	5	! BSH	: block shift
+	.byte	31	! BLM	: block mask
+	.byte	1	! EXM	: extent mask
+	.byte	0	! Dummy
+	.word	2039	! DSM	: bloks for data
+	.word	511	! DRM	: size of directory
+	.byte	0xf0	! AL0	: directory allocation bitmap
+	.byte	0	! AL1
+	.word	128	! CKS	: checksum -- supdisk is "removable"
+	.word	2	! OFF	: Reserved track
+
+
 !------------------------------------------------------------------------------
 ! Disk parameter header table
 
@@ -362,7 +377,7 @@ dphtbl:
 	.endif
 
     .if ENABLE_SUPDISK == 1
-	.word	0, 0, 0, 0, dirbuf, dpb_ide, csv3, alv3
+	.word	0, 0, 0, 0, dirbuf, dpb_supdisk, csv3, alv3
 	.endif		
 
 	.word	0, 0, 0, 0, dirbuf, dpb_ide, csv4, alv4

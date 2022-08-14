@@ -32,7 +32,11 @@ class SuperDisk(SupervisorDirect):
                 if self.verbose:
                   print(time.time() - tstart)
             elif cmd == CMD_WRITE:
+                if self.verbose:
+                  tstart=time.time()                
                 self.write()
+                if self.verbose:
+                  print(time.time() - tstart)                
             elif cmd == CMD_INIT:
                 self.set_active()
             else:
@@ -52,15 +56,16 @@ class SuperDisk(SupervisorDirect):
             hi = True
             addr = self.superAddress + BUF_OFS
             self.mem_write_start(addr)
-            for b in buf:
-                if hi:
-                    w = (b << 8)
-                    hi = False
-                else:
-                    w = w | b
-                    hi = True
-                    self.mem_write_fast(addr, w)
-                    addr += 2
+            self.mem_write_buffer(addr, buf)            
+#            for b in buf:
+#                if hi:
+#                    w = (b << 8)
+#                    hi = False
+#                else:
+#                    w = w | b
+#                    hi = True
+#                    self.mem_write_fast(addr, w)
+#                    addr += 2
             self.mem_write_end()
 
             if self.verbose:
