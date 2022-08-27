@@ -1,5 +1,7 @@
 # makefile for cpm8k disk images
 
+ROM_FMT = cpm8krom2k
+
 .PHONY: diskimg
 dskimg:
 	rm -f romdisk/*~
@@ -15,8 +17,8 @@ dskimg:
 	cp games/*.z8k holding/
 	cp basic/*.z8k holding/
 	python ./addeof.py holding/*.h holding/*.c holding/*.sub holding/*.8kn
-	mkfs.cpm -f cpm8krom4k -b ../cpm8kbios/cpm8k.bin romdisk.img 
-	cpmcp -f cpm8krom4k romdisk.img holding/* 0:
+	mkfs.cpm -f $(ROM_FMT) -b ../cpm8kbios/cpm8k.bin romdisk.img 
+	cpmcp -f $(ROM_FMT) romdisk.img holding/* 0:
 	mkfs.cpm -f cpm8k -b ../cpm8kbios/cpm8k.bin diska.img 
 	cpmcp -f cpm8k diska.img diska/*.* 0:
 	mkfs.cpm -f cpm8k diskb.img
@@ -31,7 +33,7 @@ dskimg:
 	dd if=diskd.img of=disk.img count=16384 bs=512 seek=49152 conv=notrunc
 
 listimg:
-	cpmls -f cpm8krom4k -D romdisk.img
+	cpmls -f $(ROM_FMT) -D romdisk.img
 
 fixlf:
 	python ./fixlf.py < romdisk_fix/ctype.h > romdisk/ctype.h

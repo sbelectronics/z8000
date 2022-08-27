@@ -14,7 +14,7 @@ diskdef cpm8krom2k
   tracks 60
   sectrk 128
   blocksize 2048
-  maxdir 512
+  maxdir 256
   skew 0
   boottrk 2
   os 2.2
@@ -25,7 +25,7 @@ diskdef cpm8krom4k
   tracks 60
   sectrk 128
   blocksize 4096
-  maxdir 512
+  maxdir 256
   skew 0
   boottrk 2
   os 2.2
