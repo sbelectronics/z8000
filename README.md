@@ -16,6 +16,16 @@ Building
 
 Run `make asm` and then `make rom`.
 
+Ports
+
+* 00-0F - SCC, serial I/O
+* 10-1F - PIO, parallel I/O
+* 20-2F - IDE, compactflash
+* 30-3F - unused, optional second IDE
+* 40-4F - floppy controller
+* 50-53 - display board
+* 58-59 - speech synthesizer
+
 Acknowledgements:
 
 * Digital Corporation, CP/M-8k Source Code

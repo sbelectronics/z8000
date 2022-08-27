@@ -105,3 +105,31 @@ Compile Stuff
 
 Resources for the basic interpreter project
   * http://www.nicholson.com/rhn/basic/basic.info.html
+
+On making bios calls via bdos
+  PUTBOO.C has some good examples
+  need to call map_addr a lot
+    CDATA = 0
+    see syscal.z8k
+  ibp.p1 = RR4
+
+  physibp = map_adr( (long) &ibp, CDATA );
+
+  _sel_disk(dsknum);
+
+  ibp.req = SETTRK;
+  ibp.p1 = (long) n; // track number
+  _bios_call( physibp );
+
+  ibp.req = SETSEC;
+  ibp.p1 = (long) n;  // sec number
+  _bios_call( physibp );
+
+  ibp.req = BSETDMA;
+  ibp.p1 = map_addr((long) addr, CDATA);
+  _bios_call( physibp );
+
+  ibp.req = WSECTOR;
+  ibp.p1 = DIRSEC;
+  _bios_call( physibp );
+  
