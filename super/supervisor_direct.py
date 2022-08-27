@@ -1,12 +1,14 @@
 from __future__ import print_function
 import sys
 import time
-import smbpi.supervisor_direct_ext
+import smbpi.supervisor_direct_v2_ext
 
 class SupervisorDirect:
     def __init__(self, verbose):
         self.verbose = verbose
-        smbpi.supervisor_direct_ext.init();
+        self.ext = smbpi.supervisor_direct_v2_ext
+        if not self.ext.init():
+            sys.exit(-1)
 
     def log(self, msg):
         if self.verbose:
@@ -19,35 +21,37 @@ class SupervisorDirect:
         pass
 
     def take_bus(self):
-        smbpi.supervisor_direct_ext.take_bus()
+        self.ext.take_bus()
 
     def release_bus(self, reset=False):
-        smbpi.supervisor_direct_ext.release_bus()
+        self.ext.release_bus()
+
+    def is_taken(self):
+        return self.ext.is_taken()
 
     def mem_read(self, addr):
-        return smbpi.supervisor_direct_ext.mem_read(addr)
+        return self.ext.mem_read(addr)
 
     def mem_read_start(self, addr):
-        smbpi.supervisor_direct_ext.mem_read_start(addr)
+        self.ext.mem_read_start(addr)
 
     def mem_read_end(self):
-        smbpi.supervisor_direct_ext.mem_read_end()
+        self.ext.mem_read_end()
 
     def mem_read_fast(self, addr):
-        return smbpi.supervisor_direct_ext.mem_read_fast(addr)
+        return self.ext.mem_read_fast(addr)
 
     def mem_write(self, addr, val):
-        smbpi.supervisor_direct_ext.mem_write(addr, val)
+        self.ext.mem_write(addr, val)
 
     def mem_write_buffer(self, addr, bytes):
-        smbpi.supervisor_direct_ext.mem_write_buffer(addr, bytes)
-
+        self.ext.mem_write_buffer(addr, bytes)
 
     def mem_write_start(self, addr):
-        smbpi.supervisor_direct_ext.mem_write_start(addr)
+        self.ext.mem_write_start(addr)
 
     def mem_write_end(self):
-        smbpi.supervisor_direct_ext.mem_write_end()
+        self.ext.mem_write_end()
 
     def mem_write_fast(self, addr, val):
-        smbpi.supervisor_direct_ext.mem_write_fast(addr, val)
+        self.ext.mem_write_fast(addr, val)

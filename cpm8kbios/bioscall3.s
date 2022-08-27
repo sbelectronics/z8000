@@ -12,6 +12,7 @@
 	.global	secbLBA, secbvalid, secbdirty
 	.global setdma, settrk, setsec                  ! for flashio.s
 	.global maxdsk, sentinel, secbuf                ! for diskio.s
+	.global setdsk_ok                               ! for supio.s
 
 	.include "biosdef.s"
 	
@@ -33,10 +34,21 @@ func8:
 func9:
 	cp	r5, maxdsk
 	jr	nc, 1f
-	ld	setdsk, r5
 	sll	r5, #4
 	lda	r7, dphtbl(r5)
 	ld	r6, _sysseg
+	srl r5, #4
+
+	cp  r5, #SUPDISK_ID
+	jp  eq, supdisksel     ! jump to supdisk's select routine
+
+	! For romdisk, ramdisk, floppy, just assume they are okay.
+
+    ! For the CF disks, we will have decremented maxdisk if they're
+	! not okay.
+
+setdsk_ok:
+	ld	setdsk, r5	
 	ret
 1:
 	clr	r6
@@ -311,8 +323,8 @@ dpb_romdisk_2k:
 	.byte	0	! EXM	: extent mask
 	.byte	0	! Dummy
 	.word	463	! DSM	: bloks for data
-	.word	511	! DRM	: size of directory
-	.byte	0xff	! AL0	: directory allocation bitmap
+	.word	255	! DRM	: size of directory
+	.byte	0xF0	! AL0	: directory allocation bitmap
 	.byte	0	! AL1
 	.word	0	! CKS	: checksum
 	.word	2	! OFF	: Reserved track
@@ -325,13 +337,13 @@ dpb_romdisk_4k:
 	.byte	3	! EXM	: extent mask
 	.byte	0	! Dummy
 	.word	231	! DSM	: bloks for data
-	.word	511	! DRM	: size of directory
-	.byte	0xf0	! AL0	: directory allocation bitmap
+	.word	255	! DRM	: size of directory
+	.byte	0xC0	! AL0	: directory allocation bitmap
 	.byte	0	! AL1
 	.word	0	! CKS	: checksum
 	.word	2	! OFF	: Reserved track	
 
-! Two reserved tracks, for boot disk, up to 704 KB, 44 tracks
+! Zero reserved tracks, for boot disk, up to 704 KB, 44 tracks
 dpb_ramdisk:
 	.word	128	! SPT	: sectors per track
 	.byte	5	! BSH	: block shift
@@ -339,8 +351,8 @@ dpb_ramdisk:
 	.byte	3	! EXM	: extent mask
 	.byte	0	! Dummy
 	.word	176	! DSM	: bloks for data
-	.word	511	! DRM	: size of directory
-	.byte	0xf0	! AL0	: directory allocation bitmap
+	.word	255	! DRM	: size of directory
+	.byte	0xC0	! AL0	: directory allocation bitmap
 	.byte	0	! AL1
 	.word	0	! CKS	: checksum
 	.word	0	! OFF	: Reserved track	
@@ -365,7 +377,7 @@ dpb_supdisk:
 
 dphtbl:
     .if ENABLE_ROMDISK == 1
-	.word	0, 0, 0, 0, dirbuf, dpb_romdisk_4k, csv0, alv0
+	.word	0, 0, 0, 0, dirbuf, dpb_romdisk_2k, csv0, alv0
 	.endif
 
     .if ENABLE_RAMDISK == 1

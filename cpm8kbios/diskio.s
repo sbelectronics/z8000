@@ -102,8 +102,8 @@ disk_exists:
 	lda     r4, notAllrightMsg
 	call    puts
 itsGonnaBeAllright:
-	ret 
-	
+	ret
+
 !------------------------------------------------------------------------------
 !  diskrd
 !    One sector read

@@ -23,7 +23,7 @@ def main():
     parser.add_option("-C", "--count", dest="count",
          help="count", metavar="ADDR", type="int", default=65536)
     parser.add_option("-V", "--value", dest="value",
-         help="value", metavar="VAL", type="int", default=0)
+         help="value", metavar="VAL", type="string", default=0)
     parser.add_option("-P", "--ascii", dest="ascii",
          help="print ascii value", action="store_true", default=False)
     parser.add_option("-R", "--rate", dest="rate",
@@ -60,7 +60,7 @@ def main():
       bus = smbus.SMBus(1)
       super = Supervisor(bus, 0x20, options.verbose)
     
-
+    addr = None
     if (options.addr):
         if options.addr.startswith("0x") or options.addr.startswith("0X"):
             addr = int(options.addr[2:], 16)
@@ -68,6 +68,15 @@ def main():
             addr = int(options.addr[1:], 16)
         else:
             addr = int(options.addr)
+
+    value = None
+    if (options.value):
+        if options.value.startswith("0x") or options.value.startswith("0X"):
+            value = int(options.value[2:], 16)
+        elif options.addr.startswith("$"):
+            value = int(options.value[1:], 16)
+        else:
+            value = int(options.value)            
 
     if (cmd=="reset"):
         super.reset()
@@ -96,7 +105,7 @@ def main():
     elif (cmd=="poke"):
         try:
             super.take_bus()
-            super.mem_write(addr, options.value)
+            super.mem_write(addr, value)
         finally:
             if not options.norelease:
                 super.release_bus()
