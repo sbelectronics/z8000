@@ -20,6 +20,11 @@
     .equ SCC_BRG_9600_9216MHz, 28   ! 9600 baud using 9.216Mhz crystal
     .equ SCC_BRG_19200_9216MHz, 13  ! 19200 baud using 9.216Mhz crystal
 
+    ! Constants for SCC clock selection
+
+    .equ SCC_CLK_SEPARATE, 0
+    .equ SCC_CLK_CPU, 2
+
 	! Set the constant for the baud rate generator below to one of the
 	! above.
 	!
@@ -27,7 +32,13 @@
 	! the crystal you're using for the SCC, not the crystal for the CPU 
 
 	.equ SCC_BRG, SCC_BRG_9600_73728MHz
-	!.equ SCC_BRG, SCC_BRG_9600_49152MHz
+
+    ! Set the constant for SCC_CLK to SCC_CLK_SEPARATE or SCC_CLK_CPU. Use
+    ! _SEPARATE if you have installed a separate crystal for the SCC. Use _CPU
+    ! if you have not installed a separate crystal and you want to use the 
+    ! CPU clock as a source.
+
+    .equ SCC_CLK, SCC_CLK_SEPARATE
 
 ! ******************************************************************************
 !	if ID_SPLIT = 1, I and D space split supported		
