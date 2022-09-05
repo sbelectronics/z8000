@@ -42,6 +42,9 @@ func9:
 	cp  r5, #SUPDISK_ID
 	jp  eq, supdisksel     ! jump to supdisk's select routine
 
+	cp  r5, #FLOPDISK_ID
+	jp  eq, flop_sel       ! jump to floppy's select routine
+
 	! For romdisk, ramdisk, floppy, just assume they are okay.
 
     ! For the CF disks, we will have decremented maxdisk if they're

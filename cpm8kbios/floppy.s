@@ -6,7 +6,7 @@
 
 	.include "biosdef.s"
 
-	.global	flop_init, flop_read, flop_write
+	.global	flop_init, flop_read, flop_write, flop_sel
 
 	unsegm
 	sect	.text
@@ -73,7 +73,7 @@
 .equ PORT_DATA, 0x43
 .equ PORT_DOR, 0x45
 .equ PORT_DCR, 0x47
-.equ PORT_DACK, 0x49
+.equ PORT_DACK, 0x45
 
 ! for 1.44 MB floppy
 .equ NUMCYL, 0x50
@@ -92,26 +92,69 @@
 ! drive select
 .equ DS, 0
 
+!------------------------------------------------------------------------------
+! flop_sel
+!   input:
+!     rr6 disk table entry
+!     r5 disk number - preserve this!
+!   exit:
+!     if supdisk not initialized, clear rr6 and return
+!     if supdisk is initialized, then jump back to setdsk_ok
+
+flop_sel:
+    test     presflag
+	jr       nz, selok
+	clr      r6
+	clr      r7
+	ret
+selok:
+    jp       setdsk_ok
+
+!------------------------------------------------------------------------------
+! flop_sel    
+
 flop_init:
-    ldb     readyflag, #0     ! you are not ready.
+    ldb     readyflag, #0     ! you are not prepared.
+    ldb     presflag, #0      ! you're not even present.
+    ldb     debugflag, #0
+    ldb     superr, #0        ! suppress errors if > 0
+
+    ld     r3, #0x1000
+init_detect:
+    inb    rh0, #PORT_MSR      ! wait for fdc to be ready for byte
+    andb   rh0, #0xC0
+    cpb    rh0, #0x80
+    jr     z, flop_detected
+    djnz   r3, init_detect
+
+    lda    r4, noflop_msg
+    call   puts
+    ret
+
+flop_detected:
+    call    reset
+    ldb     presflag, #1
 	ldb     rl5, #FLOPDISK_LETTER
 	call    scc_out
 	lda     r4, flopdiskmsg
 	call    puts	
     ret
 
+!------------------------------------------------------------------------------
+
 reset:
-    call    print_reset
     call    resetfdc
     call    clearDiskChange
     ldb     flop_trk, #0xFF   ! need recal
     ldb     readyflag, #1
     ret
 
+!------------------------------------------------------------------------------
+
 resetfdc:
 	ldb	    rl0, #0x00
 	outb	#PORT_DOR, rl0   ! DOR = 0
-    call    delay_20us
+    call    delay_10us
     ldb     rl0, #DOR
     outb    #PORT_DOR, rl0   ! DOR = DOR_BR500 = 0x0C
     call    delay_240ms
@@ -123,7 +166,10 @@ resetfdc:
     ldb     flop_trk, rl0
     ret
 
+!------------------------------------------------------------------------------
+
 clearDiskChange:
+    incb    superr, #1                  ! suppress nuisance error messages
     call    senseint
     cpb     fstrc, #FRC_DSKCHG
     jr      nz, clearDiskChange_ret
@@ -140,6 +186,7 @@ clearDiskChange:
     cpb     fstrc, #FRC_DSKCHG
     jr      nz, clearDiskChange_ret                
 clearDiskChange_ret:
+    decb    superr, #1
     ret
 
     ! rl0 = command
@@ -150,8 +197,7 @@ setupCommand:
     andb   rl1, #0x1F
     ldb    fcpcmd, rl1    ! fcpCmd = cmd & 0b00011111
 
-    ld     r1, settrk     ! r1 = track
-    andb   rl1, #1        ! rl1 = H = lsb of track
+    ldb    rl1, req_head  ! rl1 = head
     sllb   rl1, #2
     orb    rl1, #DS
     ldb    fcpbuf+1, rl1  ! fcpBuf[1] = (head&1)<<2 | DS
@@ -162,8 +208,7 @@ setupSeek:
     ldb    rl0, #CFD_SEEK
     call   setupCommand
 
-    ld     r1, settrk
-    srlb   rl1, #1        ! track = track >> 1 (lsb is head)
+    ldb    rl1, req_trk
     ldb    fcpbuf+2,  rl1 ! fcpBuf[2] = track
     ldb    fcplen, #3
     ret
@@ -190,18 +235,14 @@ setupWrite:
     jp     setupIO
 
 setupIO:
-    ld     r1, settrk
-    srlb   rl1, #1             ! track is bits 7..1 of settrk
-    ldb    fcpbuf+2, rl1
+    ldb    rl1, req_trk
+    ldb    fcpbuf+2, rl1       ! fcpbuf[2] = req_trk
 
-    ld     r1, settrk
-    andb   rl1, #1             ! head is the LSB of settrk
-    ldb    fcpbuf+3, rl1
+    ldb    rl1, req_head
+    ldb    fcpbuf+3, rl1       ! fcpbuf[3] = req_head
 
-    ld     r1, setsec
-    srlb   rl1, #2             ! we read 512 byte sectors, not 128
-    incb   rl1, #1             ! record numbers start at 1
-    ldb    fcpbuf+4, rl1
+    ldb    rl1, req_sec
+    ldb    fcpbuf+4, rl1       ! fcpbuf[4] = req_sec
 
     ldb    fcpbuf+5, #N
     ldb    fcpbuf+6, #EOT
@@ -213,10 +254,9 @@ setupIO:
 !-------------------------------------------------------------------------------------------
 
 fop:
-    call   print_fcb
+    call   print_fcp
     call   drain
-    !call   print_drained
-    call   delay_20us
+    call   delay_10us
 
     ldb    fstrc, #FRC_OK
 
@@ -237,7 +277,6 @@ notinprog:
     lda    r1, fcpbuf
 nextfcp:
     inb    rh0, #PORT_MSR      ! wait for fdc to be ready for byte
-    !call   print_rh0
     andb   rh0, #0xC0
     cpb    rh0, #0x80
     jr     nz, nextfcp
@@ -260,14 +299,12 @@ notread:
 notwrite:
 
 readres:
-    call   print_readres
-
     ! read result
     ldb    frblen, #0
     lda    r1, frbbuf
 
 resAgain:
-    call   delay_20us
+    call   delay_2us
     inb    rl0, #PORT_MSR
     !call   print_rl0
     andb   rl0, #0xF0
@@ -284,7 +321,7 @@ resNotReady:
     cpb    rl0, #0x80         ! (MSR & 0xF0) == 0x80 means waiting for next command, we have result
     jr     nz, resAgain
 
-    call   print_frb   
+    call   print_frb
 
     cpb    fcpcmd, #CFD_DRVSTAT
     jr     nz, notdrvstat
@@ -380,18 +417,20 @@ notdiskchg:
 !--------------------------------------------------------------------------
 
 read_block:
-    call  print_read_block
     lda   r4, secbuf
     ld    r3, #0x200
 
 read_block_next_byte:
-    ld    r2, #0x8000
-read_block_wait_msr:
+    ld    r1, #0x0010               ! 16 * 64K iterations = 1024K iterations
+read_block_wait_msr2:
+    ld    r2, #0x0000               ! 64K iterations
+read_block_wait_msr1:
     inb   rl0, #PORT_MSR
     cpb   rl0, #0xF0
     jr    z, read_block_have_byte
-    call  delay_20us
-    djnz  r2, read_block_wait_msr
+    call  delay_2us
+    djnz  r2, read_block_wait_msr1
+    djnz  r1, read_block_wait_msr2
 
     call  print_block_timeout
     jr    read_block_ret
@@ -402,7 +441,7 @@ read_block_have_byte:
     inc   r4, #1
     djnz  r3, read_block_next_byte
 
-    call  pulse_dack
+    inb  rl0, #PORT_DACK
 
 read_block_ret:
     ret
@@ -414,13 +453,15 @@ write_block:
     ld    r3, #0x200
 
 write_block_next_byte:
-    ld    r2, #0x8000
-write_block_wait_msr:
+    ld    r1, #0x0010               ! 16 * 64K iterations = 1024K iterations
+write_block_wait_msr2:
+    ld    r2, #0x0000               ! 64K iterations
+write_block_wait_msr1:
     inb   rl0, #PORT_MSR
     cpb   rl0, #0xB0
     jr    z, write_block_ready_byte
-    call  delay_20us
-    djnz  r2, write_block_wait_msr
+    call  delay_2us
+    djnz  r2, write_block_wait_msr1
 
     call  print_block_timeout
     jr    write_block_ret
@@ -431,16 +472,13 @@ write_block_ready_byte:
     inc   r4, #1
     djnz  r3, write_block_next_byte
 
-    call  pulse_dack
+    ! pulsing dack too close after the write of the last byte causes it to
+    ! not be written.
+    !call  delay_10us
+
+    inb  rl0, #PORT_DACK
 
 write_block_ret:
-    ret
-
-!-----------------------------------------------------------------------------
-
-pulse_dack:
-    ldb   rl0, #0
-    outb  #PORT_DACK, rl0
     ret
 
 !-----------------------------------------------------------------------------
@@ -472,9 +510,8 @@ start_isready:
     ret                             ! exit with fstrc set to not okay
 start_reset_ok:
 start_not_trk_ff:
-    ld    r0, settrk
-    srlb  rl0, #1                   ! low bit is the head
-    cpb   rl0, flop_trk
+    ldb   rl0, req_trk              ! see if the track we want...
+    cpb   rl0, flop_trk             ! ... is the track we have
     jr    z, start_ret_okay         ! we're already on the right track
     call  seek
     cpb   fstrc, #FRC_OK
@@ -484,9 +521,8 @@ start_not_trk_ff:
     cpb   fstrc, #FRC_OK
     jr    nz, start_ret             ! wait for seek failed
 
-    ld    r0, settrk                ! just in case someone above blew away rl0...
-    srlb  rl0, #1                   ! low bit is the head
-    ldb   flop_trk, rl0             ! store the successful seek
+    ldb   rl0, req_trk              
+    ldb   flop_trk, rl0             ! update flop_trk with the successful seek
 
 start_ret_okay:
     ldb   fstrc, #FRC_OK
@@ -518,7 +554,9 @@ drive_reset_ret:
 waitseek:
     ld    r3, #0x1000
 waitseek_loop:
+    incb  superr, #1          ! suppress errors
     call  senseint
+    decb  superr, #1
     cpb   fstrc, #FRC_OK
     jr    z, waitseek_ret
     cpb   fstrc, #FRC_ABTERM
@@ -582,8 +620,10 @@ seek:
     jp    fop
 
 !------------------------------------------------------------------------------
+!    input  rr2 --- LBA
 
 flop_read:
+    call  lba_to_req
     call  start
     cpb   fstrc, #FRC_OK
     jr    nz, flop_read_fail
@@ -599,8 +639,10 @@ flop_read_fail:
     ret
 
 !------------------------------------------------------------------------------
+!    input  rr2 --- LBA
 
 flop_write:
+    call  lba_to_req
     call  start
     cpb   fstrc, #FRC_OK
     jr    nz, flop_write_fail
@@ -616,9 +658,40 @@ flop_write_fail:
     ret
 
 !------------------------------------------------------------------------------
+!
+!    note that the LBA was designed for the CF and will have holes in it because
+!    the floppy only has 72 sectors per track instead of 128. Nevertheless, we can
+!    extract sector number and friends.
+!
+!    input  rr2 --- LBA
+!		  format 00000000-000000dd-ddtttttt-tttsssss
+!                   rh2      rl2      rh3     rl3
+!    destroys r0
 
-print_fcb:
-    lda    r4,  fcb_msg
+lba_to_req:
+    ld    r0, r3
+    andb  rl0, #0x1F
+    incb  rl0, #1
+    ldb   req_sec, rl0    ! req_sec = (bits 4..0) + 1
+
+    ld    r0, r3
+    srl   r0, #5
+    andb  rl0, #1
+    ldb   req_head, rl0   ! req_head = bit 5
+
+    ld    r0, r3
+    srl   r0, #6
+    ldb   req_trk, rl0    ! req_trk = bits 13..6
+    ret
+
+!------------------------------------------------------------------------------
+
+print_fcp:
+    test   debugflag
+    jp     z, print_fcp_ret
+
+print_fcp_always:
+    lda    r4,  fcp_msg
     call   puts
     ldb    rl5, fcplen
     call   puthex8
@@ -643,53 +716,61 @@ print_fcb:
     ldb     rl5, fcpbuf+4
     call   puthex8
     ldb	rl5, #' '
-    call   scc_out
+    call   scc_out    
     ldb     rl5, fcpbuf+5
     call   puthex8
     ldb	rl5, #' '
     call   scc_out
     ldb     rl5, fcpbuf+6
-    call   puthex8
+    call   puthex8 
     ldb	rl5, #' '
-    call   scc_out
+    call   scc_out     
     ldb     rl5, fcpbuf+7
     call   puthex8
     ldb	rl5, #' '
     call   scc_out
-    ldb     rl5, fcpbuf+8
+    ldb    rl5, fcpbuf+8
+    call   puthex8 
+    lda    r4, trk_msg
+    call   puts  
+    ldb    rl5, req_trk
     call   puthex8
+    lda    r4, head_msg
+    call   puts
+    ldb    rl5, req_head
+    call   puthex8
+    lda    r4, sec_msg
+    call   puts
+    ldb    rl5, req_sec
+    call   puthex8    
     call   putln
-    ret
-
-print_readres:
-    lda    r4,  rr_msg
-    call   puts
-    ret
-
-print_drained:
-    lda    r4, drained_msg
-    call   puts
-    ret
-
-print_reset:
-    lda    r4, reset_msg
-    call   puts
-    ret
-
-print_read_block:
-    lda    r4, read_block_msg
-    call   puts
+print_fcp_ret:
     ret
 
 print_fstrc:
+    testb  fstrc
+    jr     z, print_fstrc_ret
+    testb  superr
+    jr     nz, print_fstrc_ret
+
+    call   print_fcp_always
+    call   print_frb_always
+
+    call   putln
     lda    r4, fstrc_msg
     call   puts
     ldb    rl5, fstrc
     call   puthex8
     call   putln
+    call   putln
+print_fstrc_ret:
     ret
 
 print_frb:
+    test   debugflag
+    jr     z, print_frb_ret
+
+print_frb_always:
     lda    r4,  frb_msg
     call   puts
     ldb    rl5, frblen
@@ -710,30 +791,20 @@ print_frb:
     call   scc_out
     ldb    rl5, frbbuf+3
     call   puthex8
-    call   putln
-    ret
-
-print_rl0:
-	push   @r15, r0
-    push   @r15, r5
-    ldb    rl5, rl0
-    call   puthex8
-    ldb	rl5, #' '
+    ldb	   rl5, #' '
     call   scc_out
-    call   putln
-    pop    r5, @r15
-    pop    r0, @r15
-    ret
-
-print_rh0:
-	push   @r15, r0
-    push   @r15, r5
-    ldb    rl5, rh0
+    ldb    rl5, frbbuf+4
     call   puthex8
-    ldb	rl5, #' '
+    ldb	   rl5, #' '
     call   scc_out
-    pop    r5, @r15
-    pop    r0, @r15
+    ldb    rl5, frbbuf+5
+    call   puthex8
+    ldb	   rl5, #' '
+    call   scc_out
+    ldb    rl5, frbbuf+6
+    call   puthex8            
+    call   putln
+print_frb_ret:
     ret
 
 print_block_timeout:
@@ -748,6 +819,15 @@ print_block_timeout:
 	.even
 
 flop_trk:
+    .space 1
+
+req_trk:
+    .space 1
+
+req_head:
+    .space 1
+
+req_sec:
     .space 1
 
 fcpbuf:
@@ -774,24 +854,29 @@ motorflag:
 readyflag:
     .space 1
 
+presflag:
+    .space 1
+
+superr:
+    .space 1
+
+debugflag:
+    .space 1
+
 !------------------------------------------------------------------------------
 	sect	.rodata
 
 flopdiskmsg:
     .asciz  ": floppy disk\r\n"
 
+noflop_msg:
+    .asciz " : Floppy controller not detected\r\n"
 
-fcb_msg:
-    .asciz "FCB len="
-
-drained_msg:
-    .asciz "drained\r\n"
+fcp_msg:
+    .asciz "FCP len="
 
 fstrc_msg:
-    .asciz "fstrc="
-
-rr_msg:
-    .asciz "readres\r\n"
+    .asciz "FLOPPY ERROR: fstrc="
 
 frb_msg:
     .asciz "FRB len="
@@ -803,4 +888,13 @@ read_block_msg:
     .asciz "read block\r\n"
 
 to_msg:
-    .asciz "=msr. timeout\r\n"
+    .asciz "=msr. FLOPPY ERROR: timeout\r\n"
+
+trk_msg:
+    .asciz " trk="
+
+head_msg:
+    .asciz " head="
+
+sec_msg:
+    .asciz " sec="
