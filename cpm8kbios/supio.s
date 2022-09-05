@@ -144,6 +144,7 @@ supdiskflush:
 !   print the message
 
 supdiskinit:
+    clr     supdisk_cmd
 	ldb     rl5, #SUPDISK_LETTER
 	call    scc_out
 	lda     r4, supdiskmsg
@@ -183,13 +184,13 @@ supSecOffs:
 	.even
 
 supdisk_marker:
-    .word 0x73E7    ! just makde something up to make supdisk easy to find
+    .word 0x73E7    ! just made something up to make supdisk easy to find
 	.word 0xF912
 	.word 0xA320
 	.word 0xBB49
 
 supdisk_cmd:
-    .space 2
+    .word 0         ! also set this in supdiskinit
 
 supdisk_addr:
     .space 4

@@ -1,0 +1,22 @@
+name floppy;
+device g16v8;
+partno x;
+date 1/1/1980;
+designer smbaker;
+company sbsoftware;
+revision 1;
+assembly x;
+location x;
+
+/* A0=0 should select the hi bytes, A0=1 should select the low bytes */
+
+ORDER:       !IOR, !IOW, A1, A2, A3, A4, A5, A6, !RESET, RESETO, !FDC_DCR, !FDC_DOR, !FDC_CS, TC, !DACK;
+
+VECTORS:        X     X   0   0    0  0   0   1       1       L         H         H        L    H      H /* IO on port 40-41 */
+                X     X   0   0    0  0   0   1       0       H         H         H        L    H      H /* IO on port 40-41 w/reset */
+                X     X   1   0    0  0   0   1       1       L         H         H        L    H      H /* IO on port 42-43 */
+                X     X   0   1    0  0   0   1       1       L         H         L        H    H      H /* IO on port 44-45 */
+                X     X   1   1    0  0   0   1       1       L         L         H        H    H      H /* IO on port 46-47 */
+                X     X   0   0    1  0   0   1       1       L         H         H        H    H      H /* IO on port 48-49 */
+                X     X   0   0    1  0   0   1       0       H         H         H        H    H      H /* IO on port 48-49 w/reset */
+                X     X   0   0    0  0   0   0       1       L         H         H        H    H      H /* IO on port 00-01 */

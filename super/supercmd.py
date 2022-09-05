@@ -14,6 +14,37 @@ def hex_escape(s):
     printable = string.ascii_letters + string.digits + string.punctuation + ' '
     return ''.join(c if c in printable else r'\x{0:02x}'.format(ord(c)) for c in s)
 
+def load_image(super, fn):
+    addr = 0x03000000
+    super.mem_write_start(addr)    
+    try:
+        word = 0
+        odd = False
+        filebytes = open(fn, "rb").read()
+        for b in filebytes:
+            if odd:
+                word = (word << 8) | b
+                super.mem_write_fast(addr, word)
+                addr += 2
+                odd = False
+            else:
+                odd = True
+                word = b
+    finally:
+        super.mem_write_end()
+
+def save_image(super, fn):
+    addr = 0x03000000
+    super.mem_read_start(addr)    
+    try:
+        f = open(fn, "wb")
+        for i in range(0, 32768):
+            word = super.mem_read_fast(addr)
+            f.write(word.to_bytes(2,"big"))
+            addr += 2
+    finally:
+        super.mem_read_end()        
+
 def main():
     parser = OptionParser(usage="supervisor [options] command",
             description="Commands: ...")
@@ -79,7 +110,11 @@ def main():
             value = int(options.value)            
 
     if (cmd=="reset"):
-        super.reset()
+        try:
+            super.take_bus()
+        finally:
+            if not options.norelease:
+                super.release_bus(reset=True)
 
     elif (cmd=="memdump"):
         try:
@@ -117,6 +152,23 @@ def main():
             if v!=last:
                 print(v)
                 last=v
+
+    elif (cmd=="loadimg"):
+        try:
+            super.take_bus()
+            load_image(super, options.filename)
+        finally:
+            if not options.norelease:
+                super.release_bus(reset=True)
+
+    elif (cmd=="saveimg"):
+        try:
+            super.take_bus()
+            save_image(super, options.filename)
+            super.reset()
+        finally:
+            if not options.norelease:
+                super.release_bus()                
 
 
 if __name__=="__main__":

@@ -1,0 +1,52 @@
+name floppy;
+device g16v8;
+partno x;
+date 1/1/1980;
+designer smbaker;
+company sbsoftware;
+revision 1;
+assembly x;
+location x;
+
+PIN 1 = A1;
+PIN 2 = A2;
+PIN 3 = A3; 
+PIN 4 = A4;
+PIN 5 = A5;
+PIN 6 = A6;
+PIN 7 = !IOR;
+PIN 8 = !IOW;   
+PIN 9 = !RESET;
+PIN 10 = GND;
+PIN 11 = !DC;
+PIN 12 = !IDECS1;
+PIN 13 = D7;
+PIN 14 = RESETO;
+PIN 15 = TC;
+PIN 16 = !DACK;
+PIN 17 = !FDC_DCR;
+PIN 18 = !FDC_DOR;
+PIN 19 = !FDC_CS;
+PIN 20 = VCC;
+
+FIELD IOADR = [A6..A1] ;
+
+/* actually at the odd ports following the even numbers... */
+$DEFINE MSR_ADDR 40
+$DEFINE DATA_ADDR 42
+$DEFINE DOR_ADDR 44
+$DEFINE DCR_ADDR 46
+
+FDC_CS = (IOADR:MSR_ADDR) # (IOADR:DATA_ADDR);
+FDC_DOR = (IOADR:DOR_ADDR);
+FDC_DCR = (IOADR:DCR_ADDR);
+
+RESETO = RESET; /* simple inverter */
+
+TC = 'b'1;
+DACK = 'b'0;
+
+
+
+
+

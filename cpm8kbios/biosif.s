@@ -100,6 +100,8 @@ kludge:
 	lda	r4, bootmsg
 	call	puts
 
+	ld  maxdsk, #MAXDSK_INITIAL
+
     .if ENABLE_ROMDISK == 1
     call    flashinit
 	.endif

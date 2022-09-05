@@ -73,6 +73,7 @@ lp3:
 	call    memtest_usage
 	call    cputest_usage
 	call    romtest_usage
+	call    warmboot_usage
 	jr	loop
 cmnderr:	
 	lda	rr4, errmsg
@@ -102,6 +103,8 @@ cmnd_tbl:
 	.long	iow_cmnd
 	.byte   'B', ' '
 	.long   bootflash_cmnd
+	.byte   'W', ' '
+	.long   warmboot_cmnd	
 	.byte   'M', ' '
 	.long   memtest_cmnd
 	.byte   'T', ' '

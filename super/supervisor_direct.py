@@ -24,7 +24,7 @@ class SupervisorDirect:
         self.ext.take_bus()
 
     def release_bus(self, reset=False):
-        self.ext.release_bus()
+        self.ext.release_bus(reset)
 
     def is_taken(self):
         return self.ext.is_taken()

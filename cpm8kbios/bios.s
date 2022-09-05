@@ -24,6 +24,7 @@
 	sect .text
 
 biosinit:
+    clr iobyte
 	clr	secbLBA
 	clr	secbLBA + 2
 	clrb	secbvalid
