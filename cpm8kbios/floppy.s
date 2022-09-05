@@ -116,7 +116,7 @@ selok:
 flop_init:
     ldb     readyflag, #0     ! you are not prepared.
     ldb     presflag, #0      ! you're not even present.
-    ldb     debugflag, #0
+    ldb     debugflag, #0     ! set this to 1 to TURN ON LOGGING
     ldb     superr, #0        ! suppress errors if > 0
 
     ld     r3, #0x1000
@@ -266,7 +266,7 @@ fop:
     jr     nz, notinprog       ! idiot-check: IO should not be in progress
 
     ldb    fstrc, #FRC_INPROGRESS
-    call   print_fstrc
+    !call   print_fstrc
     ret
 
 notinprog:
@@ -325,13 +325,13 @@ resNotReady:
 
     cpb    fcpcmd, #CFD_DRVSTAT
     jr     nz, notdrvstat
-    call   print_fstrc
+    !call   print_fstrc
     ret                       ! driveState has nothing to evaluate
 notdrvstat:
 
     cpb    frblen, #0
     jr     nz, notzerores     ! if there's no st0, then nothing to evaluate
-    call   print_fstrc
+    !call   print_fstrc
     ret
 
 notzerores:
@@ -345,13 +345,13 @@ notzerores:
     cpb   fcpcmd, #CFD_SENSEINT
     jr    nz, notsenseint
     ldb   fstrc, #FRC_ABTERM
-    call  print_fstrc
+    !call  print_fstrc
     ret
 notsenseint:
     cpb   frblen, #1
     jr    nz, notlen1
     ldb   fstrc, #FRC_ABTERM
-    call   print_fstrc
+    !call   print_fstrc
     ret
 notlen1:
 
@@ -359,59 +359,59 @@ notlen1:
     bitb  rl0, #7
     jr    z,  notendcyl
     ldb   fstrc, #FRC_ENDCYL
-    call   print_fstrc
+    !call   print_fstrc
     ret 
 notendcyl:
     bitb  rl0, #5
     jr    z, notdataerr
     ldb   fstrc, #FRC_DATAERR
-    call   print_fstrc
+    !call   print_fstrc
     ret
 notdataerr:
     bitb  rl0, #4
     jr    z, notoverrun
     ldb   fstrc, #FRC_OVERRUN
-    call   print_fstrc
+    !call   print_fstrc
     ret
 notoverrun:
     bitb  rl0, #2
     jr    z, notnodata
     ldb   fstrc, #FRC_NODATA
-    call   print_fstrc
+    !call   print_fstrc
     ret
 notnodata:
     bitb  rl0, #1
     jr    z, notnowrit
     ldb   fstrc, #FRC_NOTWRIT
-    call   print_fstrc
+    !call   print_fstrc
     ret
 notnowrit:
     bitb  rl0, #0
     jr    z, notmisadr
     ldb   fstrc, #FRC_MISADR
-    call   print_fstrc
+    !call   print_fstrc
     ret
 notmisadr:
     ! what's up here? We have an abterm but no bits set...
-    call   print_fstrc
+    !call   print_fstrc
     ret
 notabterm:
     ! rl0 is st0 & 0xC0
     cpb   rl0, #0x80
     jr    nz, notinvcmd
     ldb   fstrc, #FRC_INVCMD
-    call  print_fstrc
+    !call  print_fstrc
     ret
 notinvcmd:
     ! rl0 is st0 & 0xC0
     cpb   rl0, #0xC0
     jr    nz, notdiskchg
     ldb   fstrc, #FRC_DSKCHG
-    call   print_fstrc
+    !call   print_fstrc
     ret
 notdiskchg:
     ! unbelievable... it's all good...
-    call   print_fstrc
+    !call   print_fstrc
     ret
 
 !--------------------------------------------------------------------------
@@ -551,6 +551,9 @@ drive_reset_ret:
 
 !------------------------------------------------------------------------------
 
+! NOTE: I'm skeptical this is working right, given the long pauses that seem
+!       to happen inside of read_block / write_block.
+
 waitseek:
     ld    r3, #0x1000
 waitseek_loop:
@@ -624,6 +627,9 @@ seek:
 
 flop_read:
     call  lba_to_req
+
+    ldb   retryCount, #3
+flop_read_retry:
     call  start
     cpb   fstrc, #FRC_OK
     jr    nz, flop_read_fail
@@ -631,11 +637,13 @@ flop_read:
     call  setupRead
     call  fop
     cpb   fstrc, #FRC_OK
-    jr    nz, flop_read_fail:
+    jr    nz, flop_read_fail
     ret
 
 flop_read_fail:
-    ! do something!
+    call  print_fstrc
+    decb  retryCount, #1
+    jr    nz, flop_read_retry
     ret
 
 !------------------------------------------------------------------------------
@@ -643,6 +651,9 @@ flop_read_fail:
 
 flop_write:
     call  lba_to_req
+
+    ldb   retryCount, #3
+flop_write_retry:    
     call  start
     cpb   fstrc, #FRC_OK
     jr    nz, flop_write_fail
@@ -650,11 +661,13 @@ flop_write:
     call  setupWrite
     call  fop
     cpb   fstrc, #FRC_OK
-    jr    nz, flop_write_fail:
+    jr    nz, flop_write_fail
     ret
 
 flop_write_fail:
-    ! do something!
+    call  print_fstrc
+    decb  retryCount, #1
+    jr    nz, flop_write_retry
     ret
 
 !------------------------------------------------------------------------------
@@ -687,7 +700,7 @@ lba_to_req:
 !------------------------------------------------------------------------------
 
 print_fcp:
-    test   debugflag
+    testb  debugflag
     jp     z, print_fcp_ret
 
 print_fcp_always:
@@ -761,13 +774,18 @@ print_fstrc:
     call   puts
     ldb    rl5, fstrc
     call   puthex8
+    lda    r4, retry_msg
+    call   puts
+    ldb    rl5, retryCount
+    decb   rl5, #1
+    call   puthex8
     call   putln
     call   putln
 print_fstrc_ret:
     ret
 
 print_frb:
-    test   debugflag
+    testb  debugflag
     jr     z, print_frb_ret
 
 print_frb_always:
@@ -863,6 +881,9 @@ superr:
 debugflag:
     .space 1
 
+retryCount:
+    .space 1
+
 !------------------------------------------------------------------------------
 	sect	.rodata
 
@@ -886,6 +907,9 @@ reset_msg:
 
 read_block_msg:
     .asciz "read block\r\n"
+
+retry_msg:
+    .asciz " retries_left="
 
 to_msg:
     .asciz "=msr. FLOPPY ERROR: timeout\r\n"
