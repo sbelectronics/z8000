@@ -110,6 +110,11 @@ kludge:
     call    ramdiskinit
 	.endif
 
+    .if ENABLE_FLOPPY == 1
+    call    flop_init
+	.endif	
+
+
     .if ENABLE_SUPDISK == 1
     call    supdiskinit
 	.endif	

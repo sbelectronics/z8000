@@ -4,6 +4,10 @@
 !
 !   Copyright(c) 2022 smbaker
 
+	.include "biosdef.s"
+
+	.global	flop_init, flop_read, flop_write
+
 	unsegm
 	sect	.text
 
@@ -69,6 +73,7 @@
 .equ PORT_DATA, 0x43
 .equ PORT_DOR, 0x45
 .equ PORT_DCR, 0x47
+.equ PORT_DACK, 0x49
 
 ! for 1.44 MB floppy
 .equ NUMCYL, 0x50
@@ -88,22 +93,53 @@
 .equ DS, 0
 
 flop_init:
-    call flop_reset
+    ldb     readyflag, #0     ! you are not ready.
+	ldb     rl5, #FLOPDISK_LETTER
+	call    scc_out
+	lda     r4, flopdiskmsg
+	call    puts	
     ret
 
-flop_reset:
+reset:
+    call    print_reset
+    call    resetfdc
+    call    clearDiskChange
+    ldb     flop_trk, #0xFF   ! need recal
+    ldb     readyflag, #1
+    ret
+
+resetfdc:
 	ldb	    rl0, #0x00
-	outb	#PORT_DOR, rl0
+	outb	#PORT_DOR, rl0   ! DOR = 0
     call    delay_20us
-    ldb     rl0, DOR    
-    outb    #PORT_DOR, rl0
+    ldb     rl0, #DOR
+    outb    #PORT_DOR, rl0   ! DOR = DOR_BR500 = 0x0C
     call    delay_240ms
 
-    ldb     motorflag, #0
+    ldb     motorflag, #0    ! The motor is off
 
     ldb     rl0, flop_trk
-    orb     rl0, #0xFE
-    ldb     rl0, flop_trk
+    orb     rl0, #0xFE       ! Force an initial seek
+    ldb     flop_trk, rl0
+    ret
+
+clearDiskChange:
+    call    senseint
+    cpb     fstrc, #FRC_DSKCHG
+    jr      nz, clearDiskChange_ret
+    call    senseint
+    cpb     fstrc, #FRC_DSKCHG
+    jr      nz, clearDiskChange_ret
+    call    senseint
+    cpb     fstrc, #FRC_DSKCHG
+    jr      nz, clearDiskChange_ret
+    call    senseint
+    cpb     fstrc, #FRC_DSKCHG
+    jr      nz, clearDiskChange_ret
+    call    senseint
+    cpb     fstrc, #FRC_DSKCHG
+    jr      nz, clearDiskChange_ret                
+clearDiskChange_ret:
     ret
 
     ! rl0 = command
@@ -114,7 +150,7 @@ setupCommand:
     andb   rl1, #0x1F
     ldb    fcpcmd, rl1    ! fcpCmd = cmd & 0b00011111
 
-    ld     r1, settrk     ! rl1 = track
+    ld     r1, settrk     ! r1 = track
     andb   rl1, #1        ! rl1 = H = lsb of track
     sllb   rl1, #2
     orb    rl1, #DS
@@ -164,19 +200,22 @@ setupIO:
 
     ld     r1, setsec
     srlb   rl1, #2             ! we read 512 byte sectors, not 128
+    incb   rl1, #1             ! record numbers start at 1
     ldb    fcpbuf+4, rl1
 
     ldb    fcpbuf+5, #N
     ldb    fcpbuf+6, #EOT
-    ldb    fcpbuf+6, #GAPLENRW
-    ldb    fcpbuf+7, #GAPLENFMT
+    ldb    fcpbuf+7, #GAPLENRW
+    ldb    fcpbuf+8, #GAPLENFMT
     ldb    fcplen, #9
     ret
 
 !-------------------------------------------------------------------------------------------
 
 fop:
+    call   print_fcb
     call   drain
+    !call   print_drained
     call   delay_20us
 
     ldb    fstrc, #FRC_OK
@@ -187,39 +226,50 @@ fop:
     jr     nz, notinprog       ! idiot-check: IO should not be in progress
 
     ldb    fstrc, #FRC_INPROGRESS
+    call   print_fstrc
     ret
 
 notinprog:
 
     ! write command
 
-    ldb    rl0, fcplen         ! write fcplen byte3s from fcp to the data port
+    ldb    rl0, fcplen         ! write fcplen bytes from fcp to the data port
     lda    r1, fcpbuf
 nextfcp:
+    inb    rh0, #PORT_MSR      ! wait for fdc to be ready for byte
+    !call   print_rh0
+    andb   rh0, #0xC0
+    cpb    rh0, #0x80
+    jr     nz, nextfcp
+
     ldb    rh0, @r1
     outb   #PORT_DATA, rh0
     inc    r1, #1
     dbjnz  rl0, nextfcp
 
     ! execute
-    cp     fcpcmd, #CFD_READ
+    cpb    fcpcmd, #CFD_READ
     jr     nz, notread
     call   read_block
     jr     readres
 notread:
-    cp     fcpcmd, #CFD_WRITE
+    cpb    fcpcmd, #CFD_WRITE
     jr     nz, notwrite
     call   write_block
     jr     readres    
 notwrite:
 
 readres:
+    call   print_readres
+
     ! read result
     ldb    frblen, #0
     lda    r1, frbbuf
 
 resAgain:
-    ldb    rl0, #PORT_MSR
+    call   delay_20us
+    inb    rl0, #PORT_MSR
+    !call   print_rl0
     andb   rl0, #0xF0
     cpb    rl0, #0xD0          ! (MSR & 0xF0) == 0xD0 means result byte is ready to read
     jr     nz, resNotReady
@@ -227,23 +277,30 @@ resAgain:
     inb    rh0, #PORT_DATA
     ldb    @r1, rh0
     inc    r1, #1
-    inc    frblen, #1
+    incb   frblen, #1
     jr     resAgain
 
 resNotReady:
     cpb    rl0, #0x80         ! (MSR & 0xF0) == 0x80 means waiting for next command, we have result
     jr     nz, resAgain
 
+    call   print_frb   
+
     cpb    fcpcmd, #CFD_DRVSTAT
     jr     nz, notdrvstat
+    call   print_fstrc
     ret                       ! driveState has nothing to evaluate
 notdrvstat:
-    cp     frblen, #0
+
+    cpb    frblen, #0
     jr     nz, notzerores     ! if there's no st0, then nothing to evaluate
+    call   print_fstrc
     ret
+
 notzerores:
 
     ldb   rl0, frbbuf         !  rl0 = st0 = frbbuf[0]
+    !call  print_rl0
     andb  rl0, #0xC0
     cpb   rl0, #0x40
     jp    nz, notabterm
@@ -251,11 +308,13 @@ notzerores:
     cpb   fcpcmd, #CFD_SENSEINT
     jr    nz, notsenseint
     ldb   fstrc, #FRC_ABTERM
+    call  print_fstrc
     ret
 notsenseint:
     cpb   frblen, #1
     jr    nz, notlen1
     ldb   fstrc, #FRC_ABTERM
+    call   print_fstrc
     ret
 notlen1:
 
@@ -263,67 +322,89 @@ notlen1:
     bitb  rl0, #7
     jr    z,  notendcyl
     ldb   fstrc, #FRC_ENDCYL
+    call   print_fstrc
     ret 
 notendcyl:
     bitb  rl0, #5
     jr    z, notdataerr
     ldb   fstrc, #FRC_DATAERR
+    call   print_fstrc
     ret
 notdataerr:
     bitb  rl0, #4
     jr    z, notoverrun
     ldb   fstrc, #FRC_OVERRUN
+    call   print_fstrc
     ret
 notoverrun:
     bitb  rl0, #2
     jr    z, notnodata
     ldb   fstrc, #FRC_NODATA
+    call   print_fstrc
     ret
 notnodata:
     bitb  rl0, #1
     jr    z, notnowrit
     ldb   fstrc, #FRC_NOTWRIT
+    call   print_fstrc
     ret
 notnowrit:
     bitb  rl0, #0
     jr    z, notmisadr
     ldb   fstrc, #FRC_MISADR
+    call   print_fstrc
     ret
 notmisadr:
-    ret  
+    ! what's up here? We have an abterm but no bits set...
+    call   print_fstrc
+    ret
 notabterm:
     ! rl0 is st0 & 0xC0
     cpb   rl0, #0x80
     jr    nz, notinvcmd
     ldb   fstrc, #FRC_INVCMD
+    call  print_fstrc
     ret
 notinvcmd:
     ! rl0 is st0 & 0xC0
     cpb   rl0, #0xC0
     jr    nz, notdiskchg
     ldb   fstrc, #FRC_DSKCHG
+    call   print_fstrc
     ret
 notdiskchg:
     ! unbelievable... it's all good...
+    call   print_fstrc
     ret
 
 !--------------------------------------------------------------------------
 
 read_block:
+    call  print_read_block
     lda   r4, secbuf
     ld    r3, #0x200
 
+read_block_next_byte:
+    ld    r2, #0x8000
 read_block_wait_msr:
     inb   rl0, #PORT_MSR
     cpb   rl0, #0xF0
-    jr    nz, read_block_wait_msr
+    jr    z, read_block_have_byte
+    call  delay_20us
+    djnz  r2, read_block_wait_msr
 
-    ! TODO: There's no timeout here; we'll block forever
+    call  print_block_timeout
+    jr    read_block_ret
 
+read_block_have_byte:
     inb   rl0, #PORT_DATA
     ldb   @r4, rl0
     inc   r4, #1
-    djnz  r3, read_block_wait_msr
+    djnz  r3, read_block_next_byte
+
+    call  pulse_dack
+
+read_block_ret:
     ret
 
 !-----------------------------------------------------------------------------
@@ -332,17 +413,34 @@ write_block:
     lda   r4, secbuf
     ld    r3, #0x200
 
+write_block_next_byte:
+    ld    r2, #0x8000
 write_block_wait_msr:
     inb   rl0, #PORT_MSR
     cpb   rl0, #0xB0
-    jr    nz, write_block_wait_msr
+    jr    z, write_block_ready_byte
+    call  delay_20us
+    djnz  r2, write_block_wait_msr
 
-    ! TODO: There's no timeout here; we'll block forever
+    call  print_block_timeout
+    jr    write_block_ret
 
+write_block_ready_byte:
     ldb   rl0, @r4
     outb  #PORT_DATA, rl0
     inc   r4, #1
-    djnz  r3, write_block_wait_msr
+    djnz  r3, write_block_next_byte
+
+    call  pulse_dack
+
+write_block_ret:
+    ret
+
+!-----------------------------------------------------------------------------
+
+pulse_dack:
+    ldb   rl0, #0
+    outb  #PORT_DACK, rl0
     ret
 
 !-----------------------------------------------------------------------------
@@ -351,7 +449,7 @@ drain:
     inb   rl0, #PORT_MSR
     andb  rl0, #0x0C
     cpb   rl0, #0x0C
-    jr    nz, drain_has_data
+    jr    z, drain_has_data
     ret                             ! no data; return 
 drain_has_data:
     inb   rl0, #PORT_DATA           ! eat the data
@@ -360,6 +458,11 @@ drain_has_data:
 !------------------------------------------------------------------------------
 
 start:
+    test  readyflag
+    jr    nz, start_isready
+    call  reset
+
+start_isready:
     call  motoron
     cpb   flop_trk, #0xFF
     jr    nz, start_not_trk_ff
@@ -376,9 +479,14 @@ start_not_trk_ff:
     call  seek
     cpb   fstrc, #FRC_OK
     jr    nz, start_ret             ! seek failed
+
     call  waitseek
     cpb   fstrc, #FRC_OK
     jr    nz, start_ret             ! wait for seek failed
+
+    ld    r0, settrk                ! just in case someone above blew away rl0...
+    srlb  rl0, #1                   ! low bit is the head
+    ldb   flop_trk, rl0             ! store the successful seek
 
 start_ret_okay:
     ldb   fstrc, #FRC_OK
@@ -435,11 +543,11 @@ motoron:
     outb  #PORT_DCR, rl0
 
     test  motorflag
-    jr    z, motoron_ret
+    jr    nz, motoron_ret            ! if motorflag!=0, then return
 
-    ldb   motorflag, #1
+    ldb   motorflag, #1              ! set motorflag
 
-    call  delay_240ms
+    call  delay_240ms                ! delay while motor spins up
     call  delay_240ms
     call  delay_240ms
     call  delay_240ms
@@ -475,36 +583,164 @@ seek:
 
 !------------------------------------------------------------------------------
 
-floppy_read:
+flop_read:
     call  start
     cpb   fstrc, #FRC_OK
-    jr    nz, floppy_read_fail
+    jr    nz, flop_read_fail
 
     call  setupRead
     call  fop
     cpb   fstrc, #FRC_OK
-    jr    nz, floppy_read_fail:
+    jr    nz, flop_read_fail:
     ret
 
-floppy_read_fail:
+flop_read_fail:
     ! do something!
     ret
 
 !------------------------------------------------------------------------------
 
-floppy_write:
+flop_write:
     call  start
     cpb   fstrc, #FRC_OK
-    jr    nz, floppy_write_fail
+    jr    nz, flop_write_fail
 
     call  setupWrite
     call  fop
     cpb   fstrc, #FRC_OK
-    jr    nz, floppy_write_fail:
+    jr    nz, flop_write_fail:
     ret
 
-floppy_write_fail:
+flop_write_fail:
     ! do something!
+    ret
+
+!------------------------------------------------------------------------------
+
+print_fcb:
+    lda    r4,  fcb_msg
+    call   puts
+    ldb    rl5, fcplen
+    call   puthex8
+    ldb	rl5, #' '
+    call   scc_out     
+    ldb    rl5, fcpbuf
+    call   puthex8
+    ldb	rl5, #' '
+    call   scc_out
+    ldb     rl5, fcpbuf+1
+    call   puthex8
+    ldb	rl5, #' '
+    call   scc_out
+    ldb     rl5, fcpbuf+2
+    call   puthex8
+    ldb	rl5, #' '
+    call   scc_out
+    ldb     rl5, fcpbuf+3
+    call   puthex8
+    ldb	rl5, #' '
+    call   scc_out
+    ldb     rl5, fcpbuf+4
+    call   puthex8
+    ldb	rl5, #' '
+    call   scc_out
+    ldb     rl5, fcpbuf+5
+    call   puthex8
+    ldb	rl5, #' '
+    call   scc_out
+    ldb     rl5, fcpbuf+6
+    call   puthex8
+    ldb	rl5, #' '
+    call   scc_out
+    ldb     rl5, fcpbuf+7
+    call   puthex8
+    ldb	rl5, #' '
+    call   scc_out
+    ldb     rl5, fcpbuf+8
+    call   puthex8
+    call   putln
+    ret
+
+print_readres:
+    lda    r4,  rr_msg
+    call   puts
+    ret
+
+print_drained:
+    lda    r4, drained_msg
+    call   puts
+    ret
+
+print_reset:
+    lda    r4, reset_msg
+    call   puts
+    ret
+
+print_read_block:
+    lda    r4, read_block_msg
+    call   puts
+    ret
+
+print_fstrc:
+    lda    r4, fstrc_msg
+    call   puts
+    ldb    rl5, fstrc
+    call   puthex8
+    call   putln
+    ret
+
+print_frb:
+    lda    r4,  frb_msg
+    call   puts
+    ldb    rl5, frblen
+    call   puthex8
+    ldb	   rl5, #' '
+    call   scc_out     
+    ldb    rl5, frbbuf
+    call   puthex8
+    ldb	   rl5, #' '
+    call   scc_out
+    ldb    rl5, frbbuf+1
+    call   puthex8
+    ldb	   rl5, #' '
+    call   scc_out
+    ldb    rl5, frbbuf+2
+    call   puthex8
+    ldb	   rl5, #' '
+    call   scc_out
+    ldb    rl5, frbbuf+3
+    call   puthex8
+    call   putln
+    ret
+
+print_rl0:
+	push   @r15, r0
+    push   @r15, r5
+    ldb    rl5, rl0
+    call   puthex8
+    ldb	rl5, #' '
+    call   scc_out
+    call   putln
+    pop    r5, @r15
+    pop    r0, @r15
+    ret
+
+print_rh0:
+	push   @r15, r0
+    push   @r15, r5
+    ldb    rl5, rh0
+    call   puthex8
+    ldb	rl5, #' '
+    call   scc_out
+    pop    r5, @r15
+    pop    r0, @r15
+    ret
+
+print_block_timeout:
+    ldb    rl5, rl0
+    call   puthex8
+    lda    r4, to_msg
+    call   puts
     ret
 
 !------------------------------------------------------------------------------
@@ -515,10 +751,10 @@ flop_trk:
     .space 1
 
 fcpbuf:
-    .space 8
+    .space 9
 
 frbbuf:
-    .space 8
+    .space 9
 
 fcplen:
     .space 1
@@ -535,3 +771,36 @@ fstrc:
 motorflag:
     .space 1
 
+readyflag:
+    .space 1
+
+!------------------------------------------------------------------------------
+	sect	.rodata
+
+flopdiskmsg:
+    .asciz  ": floppy disk\r\n"
+
+
+fcb_msg:
+    .asciz "FCB len="
+
+drained_msg:
+    .asciz "drained\r\n"
+
+fstrc_msg:
+    .asciz "fstrc="
+
+rr_msg:
+    .asciz "readres\r\n"
+
+frb_msg:
+    .asciz "FRB len="
+
+reset_msg:
+    .asciz "reset\r\n"
+
+read_block_msg:
+    .asciz "read block\r\n"
+
+to_msg:
+    .asciz "=msr. timeout\r\n"

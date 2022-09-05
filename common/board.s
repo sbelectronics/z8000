@@ -51,6 +51,6 @@
 ! ******************************************************************************	
 	.equ ENABLE_ROMDISK, 1
 	.equ ENABLE_RAMDISK, 1
-	.equ ENABLE_FLOPPY, 0
+	.equ ENABLE_FLOPPY, 1
     .equ ENABLE_SUPDISK, 1
     .equ ENABLE_CFDISK, 1

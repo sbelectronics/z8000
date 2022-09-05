@@ -17,6 +17,7 @@ VECTORS:        X     X   0   0    0  0   0   1       1       L         H       
                 X     X   1   0    0  0   0   1       1       L         H         H        L    H      H /* IO on port 42-43 */
                 X     X   0   1    0  0   0   1       1       L         H         L        H    H      H /* IO on port 44-45 */
                 X     X   1   1    0  0   0   1       1       L         L         H        H    H      H /* IO on port 46-47 */
-                X     X   0   0    1  0   0   1       1       L         H         H        H    H      H /* IO on port 48-49 */
-                X     X   0   0    1  0   0   1       0       H         H         H        H    H      H /* IO on port 48-49 w/reset */
+                X     0   0   0    1  0   0   1       1       L         H         H        H    H      L /* IO write on port 48-49 */
+                0     1   0   0    1  0   0   1       1       L         H         H        H    H      H /* IO read on port 48-49 */                
+                X     0   0   0    1  0   0   1       0       H         H         H        H    H      L /* IO on port 48-49 w/reset */
                 X     X   0   0    0  0   0   0       1       L         H         H        H    H      H /* IO on port 00-01 */

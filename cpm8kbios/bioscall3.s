@@ -105,7 +105,9 @@ func13:
 	popl	rr2, @r15
 	ldl	    secbLBA, rr2
 	lda	    r4, secbuf
-	call	diskrd
+
+    call    diskbufrd
+
 	ldb	    secbvalid, #1
 2:
 	ld	r1, setsec
@@ -121,6 +123,16 @@ func13:
 	clrb	secbdirty
 	clr	r7
 	ret
+
+diskbufrd:
+	cp      secbDisk, #FLOPDISK_ID    ! TODO / inefficient / memory compare
+	jr      nz, readNotFloppy
+	call    flop_read
+	ret
+readNotFloppy:
+	call	diskrd
+    ret
+
 
 !------------------------------------------------------------------------------
 ! func14
@@ -159,7 +171,7 @@ func14:
 	popl	rr2, @r15
 	ldl	    secbLBA, rr2
 	lda	    r4, secbuf
-	call	diskrd
+	call	diskbufrd
 	ldb	    secbvalid, #1
 2:
 	ld	    r1, setsec
@@ -242,7 +254,7 @@ flush:
 
 	ldl	    rr2, secbLBA
 	lda	    r4, secbuf
-	call	diskwr
+	call	diskbufwr
 	clrb	secbdirty
 	clrb	secbvalid
 
@@ -254,6 +266,15 @@ flush:
 !	popl     rr0, @r15
 
 	ret
+
+diskbufwr:
+	cp      secbDisk, #FLOPDISK_ID    ! TODO / inefficient / memory compare
+	jr      nz, wrtNotFloppy
+	call    flop_write
+	ret
+wrtNotFloppy:
+	call	diskwr
+    ret
 
 !------------------------------------------------------------------------------
 ! convLBA
@@ -285,7 +306,7 @@ convLBA:
 
 ! Preinitialized variables
 maxdsk:
-    .word MAXDSK_INITIAL
+    .word MAXDSK_INITIAL     ! also set this in biosif.s
 
 ! Sector Translate Table
 !  These parameters are based on the CP/M BIOS writen by Mr.Grant's.
@@ -315,7 +336,6 @@ dpb_ide:
 
 
 ! Two reserved tracks, for boot disk, up to 960 KB, 60 tracks, 2K blocks
-! Note: stat misreported free space on this one
 dpb_romdisk_2k:
 	.word	128	! SPT	: sectors per track
 	.byte	4	! BSH	: block shift
@@ -371,6 +391,20 @@ dpb_supdisk:
 	.word	128	! CKS	: checksum -- supdisk is "removable"
 	.word	2	! OFF	: Reserved track
 
+! Two reserved tracks, for boot disk, up to 1404 KB, 160 tracks, 2K blocks
+dpb_floppy:
+	.word	72	! SPT	: sectors per track (18 512B sectors)
+	.byte	4	! BSH	: block shift
+	.byte	15	! BLM	: block mask
+	.byte	0	! EXM	: extent mask
+	.byte	0	! Dummy
+	.word	710	! DSM	: bloks for data
+	.word	255	! DRM	: size of directory
+	.byte	0xF0	! AL0	: directory allocation bitmap
+	.byte	0	! AL1
+	.word	64	! CKS	: checksum
+	.word	2	! OFF	: Reserved track
+
 
 !------------------------------------------------------------------------------
 ! Disk parameter header table
@@ -385,7 +419,7 @@ dphtbl:
 	.endif
 
     .if ENABLE_FLOPPY == 1
-	! TODO ...
+	.word	0, 0, 0, 0, dirbuf, dpb_floppy, csv1, alv1
 	.endif
 
     .if ENABLE_SUPDISK == 1
