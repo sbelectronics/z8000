@@ -62,7 +62,7 @@ getc:
 scccmds:
 	.byte	9, 0xc0		! Reset
 	.byte	4, 0x44		! x16, 1stop-bit, non-parity
-	.byte	3, 0xe0		! Receive  8bit/char, rts auto         
+	.byte	3, 0xe0		! Receive  8bit/char, rts auto
 	.byte	5, 0xe2		! Send 8bit/char, dtr rts
 	.byte	11, 0x50	! BG use for receiver and transmiter
 	.byte	12, SCC_BRG ! see ../common/board.s

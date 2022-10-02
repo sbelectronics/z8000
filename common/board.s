@@ -54,3 +54,10 @@
 	.equ ENABLE_FLOPPY, 1
     .equ ENABLE_SUPDISK, 1
     .equ ENABLE_CFDISK, 1
+
+! ******************************************************************************
+!	Enable or disable the video board
+! ******************************************************************************	
+
+    .equ ENABLE_VIDEO, 1
+    .equ ENABLE_KBD, 1

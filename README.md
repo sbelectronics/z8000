@@ -25,6 +25,7 @@ Ports
 * 40-4F - floppy controller
 * 50-53 - display board
 * 58-59 - speech synthesizer
+* 61-6F - TMS9918 (61 = DATA, 63=CMD, 65-ACR)
 
 Acknowledgements:
 

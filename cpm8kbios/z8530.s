@@ -33,10 +33,15 @@ scc_init:
 !   destroyed:  rl0
 
 scc_out:
+scc_out_wait:
     inb     rl0, #SCCAC
     andb    rl0, #0x04
-    jr      z, scc_out
+    jr      z, scc_out_wait
     outb    #SCCAD, rl5
+
+	.if ENABLE_VIDEO == 1
+    call    tty_dochar_rl5
+    .endif
     ret
 
 !------------------------------------------------------------------------------
@@ -46,11 +51,12 @@ scc_out:
 !   destroyed:  r0, r1
 
 scc_in:
+scc_in_wait:
     inb     rl0, #SCCAC
     andb    rl0, #0x01
-    jr      z, scc_in 
+    jr      z, scc_in_wait
     clr     r7
-    inb     rl7, #SCCAD 
+    inb     rl7, #SCCAD
     ret
 
 !------------------------------------------------------------------------------
@@ -70,7 +76,7 @@ scc_status:
     sect .rdata
 
 scccmds:
-    !.byte   9, 0xc0     ! Reset
+    !.byte   9, 0xc0    ! Reset
     .byte   3, 0xc0     ! Receiver disable
     .byte   5, 0xe2     ! Transmiter disable
     .byte   4, 0x44     ! x16, 1stop-bit, non-parity

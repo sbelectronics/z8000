@@ -14,6 +14,8 @@
 ! *
 ! * 20200211 4sun5bu -- modified and converted for assembling with GNU as
 
+    .include "../common/board.s"
+
 ! ****************************************************
 ! *
 ! * NOTE
@@ -105,7 +107,7 @@ trap_1:				! jp @rr0
 	pushl   @r14, rr0	! pushl @rr14, rr0
 	ret
 
-	_trap_ret:		! return from trap or interrupt
+_trap_ret:		! return from trap or interrupt
 	NONSEG
 	ld	r1, nr15(r15)	! pop state
 	ld	r14, nr14(r15)
@@ -135,6 +137,20 @@ trap_1:				! jp @rr0
 
 	nmi_trap:
 	push	@r14, #NMITRAP
+	jr	_trap
+
+nvi_trap:
+    push	@r14, r0
+	NONSEG
+	.if ENABLE_KBD == 1
+	call  cio_nvi
+	.endif
+	SEG
+	pop   r0, @r14
+	iret
+
+nvi_trap_orig:
+	push	@r14, #NVITRAP
 	jr	_trap
 
 ! ****************************************************
@@ -240,6 +256,8 @@ clrtraps:
 	ldl	_trapvec + (MEM_SC + SC0TRAP) * 4, rr2
 	lda	r3, fp_epu
 	ldl	_trapvec + EPUTRAP * 4, rr2
+	lda r3, nvi
+	ldl	_trapvec + NVITRAP * 4, rr2
 
 	! initialize some PSA entries.
 	! rr0	PSA entry: FCW  (ints ENABLED)
@@ -270,11 +288,26 @@ clrtraps:
 	ldar	r2, nmi_trap
 	ldm	@r4, r0, #4
 
+	add	r5, #ps			! Non-Vectored Int.
+	ldar	r2, nvi_trap
+	ldm	@r4, r0, #4
+
 	NONSEG
 	ret
 
 
 fp_epu:
+        ret
+
+nvi:
+    ! this was my first attempt at nvi. It didn't work. Something wrong in
+	! _trap perhaps. Instead I went with calling the interrupt handler directly
+	! rather than going through _trap.
+	.if ENABLE_KBD == 1
+	    NONSEG
+	    call    cio_nvi
+		SEG
+	.endif
         ret
 /*
 dbgbc:  

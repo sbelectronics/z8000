@@ -29,6 +29,7 @@
 	.equ	NMITRAP, 0		! non-maskable int.
 	.equ	EPUTRAP, 1		! EPU (floating pt. emulator)
 	.equ	SEGTRAP, 2		! segmentation (68K bus err)
+	.equ    NVITRAP, 3      ! non-vectored interrupt (XXX smbaker - no idea how to pick the number here)
 	.equ	PITRAP, 8		! priviledge violation
 	! Interrupts, etc.
 	.equ	TRACETR, 9		! trace
@@ -129,34 +130,37 @@
 
     .if ENABLE_ROMDISK == 1
 	.equ    ROMDISK_ID, 0                                                ! disk number of first romdisk
+	.equ    ROMDISK_LETTER, ROMDISK_ID + 'A'
 	.else
 	.equ    ROMDISK_ID, 0xFF
+	.equ    ROMDISK_LETTER, 0xFF
 	.endif
 
     .if ENABLE_RAMDISK == 1
 	.equ    RAMDISK_ID, ENABLE_ROMDISK                                   ! disk number of first ramdisk
+	.equ    RAMDISK_LETTER, RAMDISK_ID + 'A'
 	.else
-	.equ    RAMDISK_ID, 0xFF	
+	.equ    RAMDISK_ID, 0xFF
+	.equ    RAMDISK_LETTER, 0xFF
 	.endif
 
     .if ENABLE_FLOPPY == 1
 	.equ    FLOPDISK_ID, ENABLE_ROMDISK + ENABLE_RAMDISK                 ! disk number of first floppy
+	.equ    FLOPDISK_LETTER, FLOPDISK_ID + 'A'
 	.else
 	.equ    FLOPDISK_ID, 0xFF	
+	.equ    FLOPDISK_LETTER, 0xFF
 	.endif
 
     .if ENABLE_SUPDISK == 1
 	.equ    SUPDISK_ID, ENABLE_ROMDISK + ENABLE_RAMDISK + ENABLE_FLOPPY  ! disk number of first floppy
+	.equ    SUPDISK_LETTER, SUPDISK_ID + 'A'		
 	.else
 	.equ    SUPDISK_ID, 0xFF
+	.equ    SUPDISK_LETTER, 0xFF
 	.endif	
 
 	.equ    FIRSTIDE, ENABLE_ROMDISK + ENABLE_RAMDISK + ENABLE_FLOPPY + ENABLE_SUPDISK   ! disk number of the first IDE disk
-
-    .equ    ROMDISK_LETTER, ROMDISK_ID + 'A'
-    .equ    RAMDISK_LETTER, RAMDISK_ID + 'A'
-	.equ    FLOPDISK_LETTER, FLOPDISK_ID + 'A'
-	.equ    SUPDISK_LETTER, SUPDISK_ID + 'A'		
 	.equ    FIRSTIDE_LETTER, FIRSTIDE + 'A'
 
 	.equ	SECSZ, 128                                                   ! sector size

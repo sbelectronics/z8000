@@ -100,6 +100,14 @@ kludge:
 	lda	r4, bootmsg
 	call	puts
 
+	.if ENABLE_KBD == 1
+	call    cio_init
+	.endif
+
+	.if ENABLE_VIDEO == 1
+	call    tty_init
+	.endif
+
 	ld  maxdsk, #MAXDSK_INITIAL
 
     .if ENABLE_ROMDISK == 1
