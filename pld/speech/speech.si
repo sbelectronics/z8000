@@ -1,0 +1,19 @@
+name speech;
+device g16v8;
+partno x;
+date 1/1/1980;
+designer smbaker;
+company sbsoftware;
+revision 1;
+assembly x;
+location x;
+
+/* A0=0 should select the hi bytes, A0=1 should select the low bytes */
+
+ORDER:       !IOR, !IOW, A1, A2, A3, A4, A5, A6, !LRQ, AR, !RDSTAT, VLD, !STB, !ALD;
+
+VECTORS:        1     1   X   X   X   X   X   X     X   X        H    L     H     H    /* no io-read or io-write */
+                1     0   0   0   1   1   0   1     X   X        H    H     L     L    /* write on port 58 */
+                1     0   1   0   1   1   0   1     X   X        H    L     H     H    /* write on port 5A - not our address */
+                1     0   0   0   1   0   0   1     X   X        H    L     H     H    /* write on port 48 - not our address */
+                0     1   0   0   1   1   0   1     X   X        L    L     H     H    /* read on port 58 */                

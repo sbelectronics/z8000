@@ -1,0 +1,52 @@
+name speech;
+device g16v8;
+partno x;
+date 1/1/1980;
+designer smbaker;
+company sbsoftware;
+revision 1;
+assembly x;
+location x;
+
+PIN 1 = !IOR;
+PIN 2 = A1;
+PIN 3 = A2; 
+PIN 4 = A3;
+PIN 5 = A4;
+PIN 6 = A5;
+PIN 7 = A6;
+PIN 8 = !LRQ;   
+PIN 9 = AR;
+PIN 10 = GND;
+PIN 11 = !IOW;
+PIN 12 = NC1;
+PIN 13 = NC2;
+PIN 14 = NC3;
+PIN 15 = !RDSTAT;
+PIN 16 = !NVI;
+PIN 17 = VLD;
+PIN 18 = !STB;
+PIN 19 = !ALD;
+PIN 20 = VCC;
+
+FIELD IOADR = [A6..A1] ;
+
+$DEFINE SPC_ADDR  58
+
+RDSTAT = IOR & IOADR:SPC_ADDR;  /* read status */
+ALD = IOW & IOADR:SPC_ADDR;     /* SP0256 load phoneme */
+
+/* votrax: VLD is active-high (that's why it's not !VLD)
+ *         The latch should be transparent whenever VLD is
+ *         high. When VLD goes low, the latch will continue
+ *         to present its internal state. Votrax STB should
+ *         therefore be fine when it does the L-to-H
+ *         transition.
+ */
+
+VLD = IOW & IOADR:SPC_ADDR;     /* votrax latch phoneme */
+STB = IOW & IOADR:SPC_ADDR;     /* votrax load phoneme. */
+
+
+
+
