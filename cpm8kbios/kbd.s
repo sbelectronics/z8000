@@ -14,10 +14,10 @@
 	unsegm
 	sect	.text
 
-.equ CIO_C, 0x69
-.equ CIO_B, 0x6B
-.equ CIO_A, 0x6D
-.equ CIO_CMD, 0x6F
+.equ CIO_C, 0x11
+.equ CIO_B, 0x13
+.equ CIO_A, 0x15
+.equ CIO_CMD, 0x17
 
 .equ CIO_MICR, 0
 .equ CIO_MCCR, 1
@@ -142,6 +142,8 @@ nodetect:
 
 cio_nvi:
     push	@r15, r0
+    push	@r15, r1
+    push	@r15, r2        
     ldb   rh0, #CIO_CTCS1
     call  cio_get
     bitb  rl0, #7
@@ -169,7 +171,59 @@ cio_nvi_nowrap:
     call  cio_set 
 
 cio_nvi_out:
+    pop   r2, @r15
+    pop   r1, @r15
     pop   r0, @r15
+    ret
+
+!------------------------------------------------------------------------------
+! cio_scan
+! 
+! notes
+!   rl1 = row counter
+!   r2 = saved data addr
+!   rh1 = scanned value
+!   rh0 = saved value
+cio_scan:
+    ldb    rl1, #8             ! number of rows to scan
+    lda    r2, cio_kb_state
+cio_scan_row:
+    clrb   rh1
+    clrb   rl0
+    setb   rl0, r1             ! rl0 has a 1 in the position we want to test
+    comb   rl0                 ! ... and now rl0 has a 0 in that posution
+    
+    comb   rl1                 ! pull down the key we want to check
+    outb   #CIO_B, rl1
+    comb   rl1                 ! restore rl1
+    inb    rh1, #CIO_A         ! read the status
+    ldb    rh0, @r2
+    cpb    rh1, rh0            ! has it changed?
+    jr     nz, cio_scan_next_row   ! no, go to next row
+
+    ldb    @r2, rh0            ! store the updated byte
+
+    comb   rh0
+    orb    rh1, rh0            ! rh1 = (rh1 | ~rh0). rh1 now has zeros only if changed to zero
+
+    ldb    rl0, #8             ! r0 is column counter
+cio_scan_col:
+    clrb   rh0
+    bitb   rh1, r0
+    jr     nz, cio_scan_next_col
+
+    ! we have a winner...
+
+    ldb    rh0, rl1            ! put the scancode in rh0
+    sllb   rh0, #3             ! ... upper 3 bits are the row
+    orb    rh0, rl0            ! ... lower 3 bits are the column
+
+cio_scan_next_col:
+    dbjnz   rl0, cio_scan_col
+
+cio_scan_next_row:
+    inc    r2, #1
+    dbjnz  rl1, cio_scan_row
     ret
 
 !------------------------------------------------------------------------------
@@ -205,6 +259,12 @@ cio_get:
 cio_enable:
     .byte    0
 
+cio_kb_state:
+    .word    0x1F
+    .word    0x1F
+    .word    0x1F
+    .word    0x1F
+
     .even
 cio_count:
 cio_count_b3:
@@ -221,13 +281,13 @@ cio_count_b0:
 
 ciocmds:
     .byte   CIO_DDA, 0b11111111    ! PortA all inputs
-    .byte   CIO_DDB, 0b11101111    ! PortB PB4 output, others inputs
+    .byte   CIO_DDB, 0b00000000    ! PortB all outputs
     .byte   CIO_DDC, 0b11111111    ! PortC all inputs
     .byte   CIO_CTTC1M, 0xEA       ! CTR1 time constant EA60 divide by 60000 = 60 ticks/second on 6MHz oscillator
     .byte   CIO_CTTC1L, 0x60
-    .byte   CIO_CTMS1, 0b11000000  ! not-Continuous, Pulse Mode, External output on PB4
+    .byte   CIO_CTMS1, 0b10000000  ! Continuous, Pulse Mode, no external output
     .byte   CIO_CTCS1, 0b11000000  ! Enable interrupt for CTR1
-    .byte   CIO_MCCR,  0b11000000   ! Enable portB and ctr1
+    .byte   CIO_MCCR,  0b11000100  ! Enable portA, portB, and ctr1
     .byte   CIO_CTCS1, 0b11000110  ! Set TCB and Gate to start counter
     .byte   CIO_MICR, 0b10100010   ! MIE, NV, RJA
 ciocmde:

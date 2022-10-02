@@ -55,13 +55,11 @@ PIOCS = IOREQ & MEMADR:PIO_ADDR;
 IDECS0 = IOREQ & MEMADR:IDE0_ADDR;
 
 /* Note: The CIO requires RD during interrupt acknowledge
- *       sequence. Not sure what to do about this as I did
- *       not anticipate it...
- *       Trying the strategy of triggering IOR, but that's
- *       risky as I don't know what other devices will do
+ *       sequence. We special case both the CIO and the SIO here
+ *       under the assumption they both behave the same way.
  */
 
-IOR = (IOREQ & READ & DS) # (INTACK & READ & DS);
+IOR = (IOREQ & READ & DS) # (MEMADR:PIO_ADDR & INTACK & READ & DS) # (MEMADR:SIO_ADDR & INTACK & READ & DS);
 IOW = IOREQ & WRITE & DS;
 
 MR = MREQ & READ & DS;
