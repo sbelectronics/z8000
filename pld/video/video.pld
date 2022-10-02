@@ -1,0 +1,46 @@
+name video;
+device g16v8;
+partno x;
+date 1/1/1980;
+designer smbaker;
+company sbsoftware;
+revision 1;
+assembly x;
+location x;
+
+PIN 1 = !IOR;
+PIN 2 = A1;
+PIN 3 = A2; 
+PIN 4 = A3;
+PIN 5 = A4;
+PIN 6 = A5;
+PIN 7 = A6;
+PIN 8 = A7;   
+PIN 9 = !VINT;
+PIN 10 = GND;
+PIN 11 = !IOW;
+PIN 12 = NC1;
+PIN 13 = NC2;
+PIN 14 = NC3;
+PIN 15 = NC4;
+PIN 16 = !PCS;
+PIN 17 = !NVI;
+PIN 18 = !CSW;
+PIN 19 = !CSR;
+PIN 20 = VCC;
+
+FIELD IOADR = [A7..A1] ;
+
+$DEFINE VID_DATA 61
+$DEFINE VID_CMD 63
+$DEFINE PIO_0 69
+$DEFINE PIO_2 6B
+$DEFINE PIO_4 6D
+$DEFINE PIO_6 6F
+
+CSR = IOR & ((IOADR:VID_DATA) # (IOADR:VID_CMD));
+CSW = IOW & ((IOADR:VID_DATA) # (IOADR:VID_CMD));
+
+PCS = ((IOADR:PIO_0) # (IOADR:PIO_2) # (IOADR:PIO_4) # (IOADR:PIO_6));
+
+

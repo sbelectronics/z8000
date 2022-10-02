@@ -1,0 +1,31 @@
+name video;
+device g16v8;
+partno x;
+date 1/1/1980;
+designer smbaker;
+company sbsoftware;
+revision 1;
+assembly x;
+location x;
+
+/* A0=0 should select the hi bytes, A0=1 should select the low bytes */
+
+ORDER:       !IOR, !IOW, A1, A2, A3, A4, A5, A6, A7, !PCS, !CSW, !CSR;
+
+VECTORS:        1     1   X   X   X   X   X   X   X     *     H     H    /* no io-read or io-write */
+                1     0   0   0   0   0   1   1   0     H     L     H    /* write on port 60/61 Video */
+                0     1   0   0   0   0   1   1   0     H     H     L    /* read on port 60/61  Video */
+                1     0   1   0   0   0   1   1   0     H     L     H    /* write on port 62/63 Video */
+                0     1   1   0   0   0   1   1   0     H     H     L    /* read on port 62/63  Video */                
+                1     0   0   0   1   0   1   1   0     L     H     H    /* write on port 68/69 PIO */
+                0     1   0   0   1   0   1   1   0     L     H     H    /* read on port 68/69  PIO */
+                1     0   1   0   1   0   1   1   0     L     H     H    /* write on port 6A/6B PIO */
+                0     1   1   0   1   0   1   1   0     L     H     H    /* read on port 6A/6B  PIO */
+                1     0   0   1   1   0   1   1   0     L     H     H    /* write on port 6C/6D PIO */
+                0     1   0   1   1   0   1   1   0     L     H     H    /* read on port 6C/6D  PIO */
+                1     0   1   1   1   0   1   1   0     L     H     H    /* write on port 6E/6F PIO */
+                0     1   1   1   1   0   1   1   0     L     H     H    /* read on port 6E/6F  PIO */                                            
+                1     0   0   1   1   1   1   1   0     H     H     H    /* write on port 71 - not our address */
+                0     1   0   1   1   1   1   1   0     H     H     H    /* write on port 71 - not our address */                
+                1     0   1   1   1   1   0   1   0     H     H     H    /* write on port 5F - not our address */
+                0     1   1   1   1   1   0   1   0     H     H     H    /* read on port 5F - not our address */                
