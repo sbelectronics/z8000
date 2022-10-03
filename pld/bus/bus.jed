@@ -1,7 +1,7 @@
 
 CUPL(WM)        5.0a  Serial# 60008009
 Device          g22v10  Library DLIB-h-40-1
-Created         Sun Oct 02 10:04:05 2022
+Created         Sun Oct 02 10:09:51 2022
 Name            bus
 Partno          x
 Revision        1
@@ -75,4 +75,4 @@ Location        x
 *V0014 00100001100N0LHHHHHHHHLN
 *V0015 00110010000N0HHLHHLHHHHN
 *V0016 00010010000N0HHLHHLHHHHN
-*14B7
+*14BD

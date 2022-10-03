@@ -52,6 +52,17 @@ scc_out_wait:
 
 scc_in:
 scc_in_wait:
+    .if ENABLE_KBD == 1
+    ! simple stupid approach of a 1-byte keyboard buffer. If it's not 0xFF, use it.
+    cpb     cio_kb_enqueue, #0xFF
+    jr      z, scc_in_wait_not_kbd
+    clr     r7
+    ldb     rl7, cio_kb_enqueue
+    ldb     cio_kb_enqueue, #0xFF
+    ret
+    .endif
+
+scc_in_wait_not_kbd:
     inb     rl0, #SCCAC
     andb    rl0, #0x01
     jr      z, scc_in_wait
@@ -65,6 +76,15 @@ scc_in_wait:
 !   destroyed:  r1, r10
 
 scc_status:
+    .if ENABLE_KBD == 1
+    ! simple stupid approach of a 1-byte keyboard buffer. If it's not 0xFF, use it.
+    cpb     cio_kb_enqueue, #0xFF
+    jr      z, scc_status_not_kbd
+    ld      r7, 0xFF
+    ret
+    .endif
+
+scc_status_not_kbd:
     inb     rl0, #SCCAC
     clr     r7
     andb    rl0, #0x01
