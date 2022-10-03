@@ -121,13 +121,11 @@ cio_detect_and_reset:
     ldb     rl0, #0xA5
     call    cio_set
     call    cio_get
-    !outb    #0x50, rl0        ! debug
     cpb     rl0, #0xA5
     jr      nz, nodetect
     ldb     rl0, #0x5A
     call    cio_set
     call    cio_get
-    !outb    #0x51, rl0        ! debug
     cpb     rl0, #0x5A
     jr      nz, nodetect
     ldb     rl0, #0x00
@@ -160,8 +158,8 @@ cio_nvi_nowrap:
     !outb  #0x50, rl0
     !ldb   rl0, cio_count_b2
     !outb  #0x51, rl0
-    !ldb   rl0, cio_count_b1
-    !outb  #0x52, rl0
+    ldb   rl0, cio_count_b1
+    outb  #0x52, rl0
     ldb   rl0, cio_count_b0
     outb  #0x53, rl0
 
@@ -220,16 +218,11 @@ cio_scan_col:
     bitb   rh1, r0
     jr     nz, cio_scan_next_col
 
-    !ldb    rh0, cio_kb_state ! XXX
-    !outb   #0x52, rh0        ! XXX
-
     ! we have a winner...
                                ! put the scancode in rh0
     ldb    rh0, rl1            ! ... start with the row
     sllb   rh0, #3             ! ... upper 3 bits are the row   
     orb    rh0, rl0            ! ... lower 3 bits are the column
-
-    !outb   #0x50, rh0
 
     bitb     scan_shift_state_byte, #scan_shift_state_bit   ! rc2014 shift is r0, c0
     jr       z, shifted
@@ -260,7 +253,6 @@ enqueue:
     jr      z, cio_scan_next_col
 
     ldb     cio_kb_enqueue, rh0
-    !outb   #0x51, rh0
 
 cio_scan_next_col:
     incb    rl0, #1           ! make rl0 1-based again
