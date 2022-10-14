@@ -1,7 +1,7 @@
 /*
-        zcc z8util.c
+        zcc z8kutil.c
         a:asz8k -o extbios.o extbios.8kn
-        a:ld8k -w -s -o z8util.z8k extbios.o z8util.o -lcpm
+        a:ld8k -w -s -o z8kutil.z8k extbios.o z8kutil.o -lcpm
 */
 
 #include "stdio.h"
@@ -101,23 +101,23 @@ char *s;
 
 int banner()
 {
-    printf("z8util, by Scott M Baker, http://www.smbaker.com\n");
+    printf("z8kutil, by Scott M Baker, http://www.smbaker.com\n");
 }
 
 
 int usage()
 {
     banner();
-    printf("z8util info                       ... show info\n");
-    printf("z8util led on                     ... turn on led\n");
-    printf("z8util led off                    ... turn off led\n");
-    printf("z8util uptime                     ... print uptime\n");
-    printf("z8util upclock                    ... run continuous uptime clock\n");
-    printf("z8util ticker                     ... run continuous ticker\n");
-    printf("z8util setdivisor <n>             ... set cio divisor\n");    
-    printf("z8util setdispb <digit> <value>   ... set display byte (0..3) to value\n");
-    printf("z8util setdispw <word> <value>    ... set display word (0..1) to value\n");
-    printf("z8util setdispl <value>           ... set display to hex value\n");
+    printf("z8kutil info                       ... show info\n");
+    printf("z8kutil led on                     ... turn on led\n");
+    printf("z8kutil led off                    ... turn off led\n");
+    printf("z8kutil uptime                     ... print uptime\n");
+    printf("z8kutil upclock                    ... run continuous uptime clock\n");
+    printf("z8kutil ticker                     ... run continuous ticker\n");
+    printf("z8kutil setdivisor <n>             ... set cio divisor\n");    
+    printf("z8kutil setdispb <digit> <value>   ... set display byte (0..3) to value\n");
+    printf("z8kutil setdispw <word> <value>    ... set display word (0..1) to value\n");
+    printf("z8kutil setdispl <value>           ... set display to hex value\n");
     printf("\noptions:\n");
     printf("  -d ... debug\n");
     printf("  -t ... send stuff to TIL display where appropriate\n");
