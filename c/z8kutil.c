@@ -7,6 +7,10 @@
 #include "stdio.h"
 #include "extbios.h"
 
+/* CP/M-8000 turn off stuff we don't need. It only saves about 4K. */
+#include "option.h"
+NOLONG NOFLOAT NOTTYIN NOFILESZ NOWILDCARDS NOASCII NOBINARY
+
 #define islower(c) (((c)>='a') && ((c)<='z'))
 #define toupper(ch) (islower(ch) ? (ch)+('A'-'a') : (ch))
 
@@ -101,7 +105,7 @@ char *s;
 
 int banner()
 {
-    printf("z8kutil, by Scott M Baker, http://www.smbaker.com\n");
+    printf("z8kutil, by Scott M Baker, http://www.smbaker.com\n\n");
 }
 
 
@@ -118,6 +122,8 @@ int usage()
     printf("z8kutil setdispb <digit> <value>   ... set display byte (0..3) to value\n");
     printf("z8kutil setdispw <word> <value>    ... set display word (0..1) to value\n");
     printf("z8kutil setdispl <value>           ... set display to hex value\n");
+    printf("z8kutil indisp                     ... continuous input from display board\n");
+    printf("z8kutil bench                      ... run a simple benchmarkn");    
     printf("\noptions:\n");
     printf("  -d ... debug\n");
     printf("  -t ... send stuff to TIL display where appropriate\n");
@@ -383,6 +389,10 @@ char **argv;
     char *arg2 = NULL;
     long tmpl;
     int tmpw;
+
+    if (argc==1) {
+        usage();
+    }
 
     for (i=1; i<argc; i++) {
         if (stricmp(argv[i],"-h")==0) {
