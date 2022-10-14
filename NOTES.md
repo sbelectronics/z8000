@@ -133,3 +133,5 @@ On making bios calls via bdos
   ibp.p1 = DIRSEC;
   _bios_call( physibp );
   
+Compiling things and see the assembly output
+  zcc -s calltest.c

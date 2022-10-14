@@ -9,6 +9,7 @@
 
     .global tty_init
     .global tty_dochar_rl5
+    .global tms_setcolor
 
 	unsegm
 	sect	.text
@@ -153,6 +154,18 @@ tms_set:
     outb   #TMS_CMD, rl0
     TMS_IODELAY
     ret
+
+!------------------------------------------------------------------------------
+! tms_setcolor
+! input:
+!    rl5 = value
+! destroy:
+!    r1, r0
+
+tms_setcolor:
+    ldb    rh1, #0x07
+    ldb    rl1, rl5
+    jp     tms_set
 
 !------------------------------------------------------------------------------
 ! tms_wr

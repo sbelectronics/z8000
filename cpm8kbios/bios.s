@@ -32,12 +32,21 @@ biosinit:
 	ret
 
 biosentry:
-	cp	r3, #22
-	jr	gt, false
-	sll	r3, #1
-	ld	r1, biostbl(r3)
-	jp	@r1
-false:
+	cp	  r3, #22
+	jr	  ugt, biosentry_check_extended
+	sll	  r3, #1
+	ld	  r1, biostbl(r3)
+	jp	  @r1
+biosentry_check_extended:
+    cpb   rh3, #0xF0              ! 0xF0xx == extended bios call
+	jr    nz, biosentry_exit	  ! ... nope
+	sub   r3, #0xF000
+	cp    r3, #0x0B                  ! ... out of range
+	jr    ugt, biosentry_exit
+	sll   r3, #1
+	ld    r1, biosexttbl(r3)
+	jp    @r1
+biosentry_exit:
 	ret
 
 !------------------------------------------------------------------------------
@@ -70,6 +79,20 @@ biostbl:
 	.word	func20
 	.word	func21
 	.word	func22
+
+biosexttbl:
+    .word   funcF000
+	.word   funcF001
+	.word   funcF002
+	.word   funcF003
+	.word   funcF004
+	.word   funcF005
+	.word   funcF006
+	.word   funcF007
+	.word   funcF008
+	.word   funcF009
+	.word   funcF00A
+	.word   funcF00B	
 
 !------------------------------------------------------------------------------
 	sect	.data

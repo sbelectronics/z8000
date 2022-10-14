@@ -9,11 +9,21 @@
 
     .global cio_init, cio_nvi
     .global cio_kb_enqueue
-
-    .global cio_count_b1, cio_count_b2, cio_count_b3, cio_count_b0, CIO_CTCS1, CIO_CMD
+    .global cio_count
+    .global cio_enable
+    .global cio_divisor
+    .global cio_khz
+    .global cio_set_divisor
 
 	unsegm
 	sect	.text
+
+.equ CIO_TICKS_PER_SECOND, 20
+.equ CIO_DIVISOR, CIO_KHZ*1000/2/CIO_TICKS_PER_SECOND
+
+.if CIO_DIVISOR > 0xFFFF
+    .error "CIO_DIVISOR out of range"
+.endif
 
 .equ CIO_C, 0x11
 .equ CIO_B, 0x13
@@ -158,10 +168,10 @@ cio_nvi_nowrap:
     !outb  #0x50, rl0
     !ldb   rl0, cio_count_b2
     !outb  #0x51, rl0
-    ldb   rl0, cio_count_b1
-    outb  #0x52, rl0
-    ldb   rl0, cio_count_b0
-    outb  #0x53, rl0
+    !ldb   rl0, cio_count_b1
+    !outb  #0x52, rl0
+    !ldb   rl0, cio_count_b0
+    !outb  #0x53, rl0
 
     call  cio_scan
 
@@ -277,7 +287,7 @@ cio_set:
     ret
 
 !------------------------------------------------------------------------------
-! cio_fet
+! cio_get
 !
 ! input:
 !   rh0 = register
@@ -288,6 +298,24 @@ cio_get:
     outb   #CIO_CMD, rh0
     inb    rl0, #CIO_CMD
     ret
+
+!------------------------------------------------------------------------------
+! cio_set_divisor
+!
+! Note: may cause some hiccups in counting as it changes
+!
+! input:
+!   r5 = divisor
+
+cio_set_divisor:
+    ldb    rh0, #CIO_CTTC1M
+    ldb    rl0, rh5
+    call   cio_set
+    ldb    rh0, #CIO_CTTC1L
+    ldb    rl0, rl5
+    call   cio_set
+    ld     cio_divisor, r5
+    ret    
 
 !------------------------------------------------------------------------------
 	sect .data
@@ -317,6 +345,12 @@ cio_count_b1:
 cio_count_b0:
     .byte    0
 
+    .even
+cio_khz:
+    .word    CIO_KHZ
+cio_divisor:
+    .word    CIO_DIVISOR
+
 !------------------------------------------------------------------------------
     sect .rdata
 
@@ -324,8 +358,8 @@ ciocmds:
     .byte   CIO_DDA, 0b11111111    ! PortA all inputs
     .byte   CIO_DDB, 0b00000000    ! PortB all outputs
     .byte   CIO_DDC, 0b11111111    ! PortC all inputs
-    .byte   CIO_CTTC1M, 0xEA       ! CTR1 time constant EA60 divide by 60000 = 60 ticks/second on 6MHz oscillator
-    .byte   CIO_CTTC1L, 0x60
+    .byte   CIO_CTTC1M, CIO_DIVISOR >> 8
+    .byte   CIO_CTTC1L, CIO_DIVISOR & 0xFF
     .byte   CIO_CTMS1, 0b10000000  ! Continuous, Pulse Mode, no external output
     .byte   CIO_CTCS1, 0b11000000  ! Enable interrupt for CTR1
     .byte   CIO_MCCR,  0b11000100  ! Enable portA, portB, and ctr1

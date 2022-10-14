@@ -1,0 +1,241 @@
+; a:asz8k -o inout.o inout.8kn
+
+    .global _setled
+	.global _gettick
+	.global _gtickhi
+	.global _gticklo
+	.global _getciop
+	.global _getciok
+	.global _getciod
+	.global _setciod
+	.global _setdisp
+	.global _setdisl
+	.global _setcolo
+	.global _getcon
+	.global _getcond
+	.global _incon
+	.global _incond
+	.global _indisp
+    .global csv
+	.global cret
+
+__text     .sect
+
+    ;--------------------------------------------------------------------------
+    ; setled(int)
+_setled:
+    ldk    r0, #12
+	call   csv
+	ld     r7, 4(r14)
+
+	ld     r3, #0F007h   ; extended syscal F007
+	ld     r5, r7        ; desired led state into r5
+	sc     #3            ; do the syscall
+
+	jp     cret
+
+    ;--------------------------------------------------------------------------
+    ; int getciop()  -- get CIO present
+	; returns
+	;    rh7 = kbd compiled
+	;    rl7 = kbd active
+_getciop:
+    ldk    r0, #12
+	call   csv
+
+	ld     r3, #0F001h   ; extended syscal F001
+	sc     #3            ; do the syscall
+
+	; result is already in r7, and r7 is our return value
+
+	jp     cret		
+
+    ;--------------------------------------------------------------------------
+    ; int gettick()
+_gettick:
+    ldk    r0, #12
+	call   csv
+
+	ld     r3, #0F002h   ; extended syscal F002
+	sc     #3            ; do the syscall
+
+	; result is already in rr6, and rr6 is our return value
+
+	jp     cret			
+
+    ;--------------------------------------------------------------------------
+    ; int gtickhi()
+_gtickhi:
+    ldk    r0, #12
+	call   csv
+
+	ld     r3, #0F002h   ; extended syscal F002
+	sc     #3            ; do the syscall
+
+	ld     r7, r6        ; move the hi bits into the result
+
+	jp     cret			
+
+    ;--------------------------------------------------------------------------
+    ; int gticklo()
+_gticklo:
+    ldk    r0, #12
+	call   csv
+
+	ld     r3, #0F002h   ; extended syscal F002
+	sc     #3            ; do the syscall
+
+	;  r7 has the lo tick count
+
+	jp     cret
+
+    ;--------------------------------------------------------------------------
+    ; int getciok()  -- get CIO Khz
+	; returns
+	;   R7 = KHz
+_getciok:
+    ldk    r0, #12
+	call   csv
+
+	ld     r3, #0F003h   ; extended syscal F003
+	sc     #3            ; do the syscall
+
+	; result is already in r7, and r7 is our return value
+
+	jp     cret
+
+    ;--------------------------------------------------------------------------
+    ; int getciod()  -- get CIO divisor
+	; returns
+	;   R7 = divisor
+_getciod:
+    ldk    r0, #12
+	call   csv
+
+	ld     r3, #0F004h   ; extended syscal F004
+	sc     #3            ; do the syscall
+
+	; result is already in r7, and r7 is our return value
+
+	jp     cret
+
+    ;--------------------------------------------------------------------------
+    ; setciod(int)  -- set cio divisor
+_setciod:
+    ldk    r0, #12
+	call   csv
+	ld     r7, 4(r14)
+
+	ld     r3, #0F005h   ; extended syscal F003
+	ld     r5, r7        ; desired divisor into r5
+	sc     #3            ; do the syscall
+
+	jp     cret		
+
+    ;--------------------------------------------------------------------------
+    ; setdisp(char dispnum, int value)
+_setdisp:
+	ldk    r0, #12
+	call   csv
+
+    ldb    rl5, 5(r14)   ; rl5 = digit number of display
+	clr    r6            ; r6 = high word of display
+	ld     r7, 6(r14)    ; r7 = low word of display
+	ld     r3, #0F009h   ; extended syscall F009
+	sc     #3
+
+	jp     cret
+
+    ;--------------------------------------------------------------------------
+    ; setdisl(long value)
+_setdisl:
+	ld     r0, #010h
+	call   csv
+
+    ldl    rr6, 4(r14)
+	ld     r5, r6        ; we can't actually pass anything in R6 since it gets segment-adjusted
+	ld     r3, #0F00Ah   ; extended syscall F00A
+	sc     #3
+
+	jp     cret
+
+    ;--------------------------------------------------------------------------
+    ; int indisp()  - input from display board
+_indisp:
+    ldk    r0, #12
+	call   csv
+
+    ld     r3, #0F00Bh   ; extended syscall F00B
+	sc     #3            ; do the syscall
+
+	; result is already in r7, and r7 is our return value
+
+	jp     cret	
+
+    ;--------------------------------------------------------------------------
+    ; setcolor(int)
+_setcolo:
+    ldk    r0, #12
+	call   csv
+	ld     r7, 4(r14)
+
+	ld     r3, #0F003h   ; extended syscal F003
+	ld     r5, r7        ; desired color into r5
+	sc     #3            ; do the syscall
+
+	jp     cret
+
+    ;--------------------------------------------------------------------------
+    ; int getcon()
+_getcon:
+    ldk    r0, #12
+	call   csv
+
+    ld     r5, #0Bh      ; 0Bh - get console status
+	sc     #2            ; do the syscall
+
+	; result is already in rr6, and rr6 is our return value
+
+	jp     cret
+
+    ;--------------------------------------------------------------------------
+    ; int incon()  - input console w/ wait and processing
+_incon:
+    ldk    r0, #12
+	call   csv
+
+    ld     r5, #01h      ; 0Bh - get console status
+	sc     #2            ; do the syscall
+
+	; result is already in rr6, and rr6 is our return value
+
+	jp     cret
+
+    ;--------------------------------------------------------------------------
+    ; int incond()  - input direct console w/ wait and but no processing
+_incond:
+    ldk    r0, #12
+	call   csv
+
+    ld     r5, #06h      ; 0Bh - get console status
+	ld     r7, #0FFh     ; FF - input character
+	sc     #2            ; do the syscall
+
+	; result is already in rr6, and rr6 is our return value
+
+	jp     cret
+
+    ;--------------------------------------------------------------------------
+    ; int getcond()  - get direct console status
+_getcond:
+    ldk    r0, #12
+	call   csv
+
+    ld     r5, #06h      ; 0Bh - get console status
+	ld     r7, #0FEh     ; FE - get status
+	sc     #2            ; do the syscall
+
+	; result is already in rr6, and rr6 is our return value
+
+	jp     cret
+
