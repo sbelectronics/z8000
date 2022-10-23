@@ -1,3 +1,7 @@
+/* NOTE: When programming using XGPRO/MINIPRO make sure
+ *       to specify ATF22V10C(UES). The "UES" is important.
+ */
+
 name bus;
 device g22v10;
 partno x;

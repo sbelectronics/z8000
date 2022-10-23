@@ -19,8 +19,10 @@ VECTORS:         0      1       0    0    0    0    0    1    0   0   0   0    H
                  0      1       1    0    0    0    0    1    0   0   0   1    H    H     L     H       H       L        H       L        H    L     /* IO read from PIO */
                  0      1       0    0    0    0    0    1    0   0   1   0    H    H     H     L       H       H        L       L        H    H     /* IO write to IDE */
                  0      1       1    0    0    0    0    1    0   0   1   0    H    H     L     H       H       H        L       L        H    L     /* IO read from IDE */
-                 0      1       0    0    0    0    0    1    0   1   0   1    H    H     H     L       H       H        H       L        H    H     /* IO write to display board */
+                 0      1       0    0    0    0    0    1    0   1   0   1    H    H     H     L       H       H        H       L        H    H     /* IO write to display board 0x50-0x5F*/
                  0      1       1    0    0    0    0    1    0   1   0   1    H    H     L     H       H       H        H       L        H    L     /* IO read from display board */
+                 0      1       0    0    0    0    0    1    0   1   1   0    H    H     H     L       H       H        H       L        H    H     /* IO write to Video 0x60-0x6F*/
+                 0      1       1    0    0    0    0    1    0   1   1   0    H    H     L     H       H       H        H       L        H    L     /* IO read from Video */                 
                  0      1       1    0    0    1    1    0    0   0   0   0    H    H     H     H       H       H        H       H        H    L     /* state is not io request */
                  0      1       1    0    0    0    1    1    0   0   1   1    H    H     H     H       H       H        H       H        L    L     /* state is INTACK and RD, not in PIO or SIO */
                  0      1       1    0    0    0    1    1    0   0   0   1    H    H     L     H       H       H        H       H        L    L     /* state is INTACK and RD, in PIO */
