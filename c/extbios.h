@@ -9,6 +9,7 @@
 #define DISP_L 0x20
 
 int setled(x);                   /* int */
+int insw();
 unsigned int gticklo();
 unsigned int gtickhi();
 long gettick();

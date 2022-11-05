@@ -105,7 +105,7 @@ scccmds:
     .byte   11, 0x50    ! BG use for receiver and transmiter
 	.byte	12, SCC_BRG ! see ../common/board.s
     .byte   13, 00
-    .byte   14, SCC_CLK    ! PCLK for BG
+    .byte   14, SCC_CLK    ! see ../common/board.s
     .byte   14, (SCC_CLK | 1)    ! BG enable
     .byte   3, 0xe1     ! Receiver enable
     .byte   5, 0xea     ! Transmiter enable

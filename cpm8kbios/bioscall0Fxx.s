@@ -130,7 +130,12 @@ funcF007_return:
 !     R7 = 1 if button pressed, 0 otherwise
 
 funcF008:
-    ! TODO
+    mbit   ! sets S if M1 is high
+	jr     pl, milow
+	ld     r7, #1
+	ret
+milow:
+    clr    r7
     ret
 	
 !------------------------------------------------------------------------------

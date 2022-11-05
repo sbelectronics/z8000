@@ -16,6 +16,7 @@
 	.global _incon
 	.global _incond
 	.global _indisp
+	.global _insw
     .global csv
 	.global cret
 
@@ -33,6 +34,19 @@ _setled:
 	sc     #3            ; do the syscall
 
 	jp     cret
+
+    ;--------------------------------------------------------------------------
+    ; int insw() -- input from switch (MI)
+_insw:
+    ldk    r0, #12
+	call   csv
+
+	ld     r3, #0F008h   ; extended syscal F008
+	sc     #3            ; do the syscall
+
+	;  r7 has the switch status
+
+	jp     cret	
 
     ;--------------------------------------------------------------------------
     ; int getciop()  -- get CIO present
@@ -179,7 +193,7 @@ _setcolo:
 	call   csv
 	ld     r7, 4(r14)
 
-	ld     r3, #0F003h   ; extended syscal F003
+	ld     r3, #0F006h   ; extended syscal F003
 	ld     r5, r7        ; desired color into r5
 	sc     #3            ; do the syscall
 

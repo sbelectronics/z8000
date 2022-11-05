@@ -6,6 +6,8 @@
  !      Released under the MIT license, see LICENSE.
  !------------------------------------------------------------------------------
 
+    .include "../common/board.s"
+
 	sect	.text
 	segm 
 	
@@ -32,6 +34,17 @@
 	ldl	dumpaddr, rr0
 	ldl	setaddr, rr0
 	ldl	goaddr, rr0
+
+    .if  AUTOBOOT==1
+	mbit
+	jr     mi, mihi    ! if minus flag is set, the MI is high
+	lda	rr4, automsg 
+	call	puts
+	jp      bootflash_cmnd
+	.endif
+
+
+mihi:
 loop:
 	ldb	rl0, #'>'
 	call	putc
@@ -115,6 +128,8 @@ tbl_end:
 
 bootmsg:
 	.asciz	"\033[2J\033[0;0HZ8001 Machine Code Monitor Ver.0.3.0\r\nModified by Scott Baker (smbaker@smbaker.com) for Scott's Z-8000 Computer\r\nPress 'B' to boot or 'H' for help\r\n"
+automsg:
+    .asciz  "MI is low. Autoboot.\r\n"
 errmsg:
 	.asciz	"??? "
 

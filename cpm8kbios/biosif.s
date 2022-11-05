@@ -127,7 +127,7 @@ kludge:
     call    supdiskinit
 	.endif	
 
-    .if ENABLE_CFDISK
+    .if ENABLE_CFDISK == 1
 	call	disk_init	! set up disk drive
 	.endif
 

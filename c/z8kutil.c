@@ -123,6 +123,7 @@ int usage()
     printf("z8kutil setdispw <word> <value>    ... set display word (0..1) to value\n");
     printf("z8kutil setdispl <value>           ... set display to hex value\n");
     printf("z8kutil indisp                     ... continuous input from display board\n");
+    printf("z8kutil inswitch                     ... continuous input from cpu board switch on MI\n");    
     printf("z8kutil bench                      ... run a simple benchmarkn");    
     printf("\noptions:\n");
     printf("  -d ... debug\n");
@@ -275,6 +276,25 @@ int doIDisp()
     last = -1;
     while (1) {
         cur = indisp();
+        if (cur!=last) {
+            printf("%02x\n", cur);
+            last=cur;
+        }
+        if ((getcon()!=0) && (incond()==3)) {
+            /* make sure we can receive the CTRL-C */
+            return;
+        };          
+    }
+
+    return 0;
+}
+
+int doISwitch()
+{
+    int cur, last;
+    last = -1;
+    while (1) {
+        cur = insw();
         if (cur!=last) {
             printf("%02x\n", cur);
             last=cur;
@@ -456,7 +476,9 @@ char **argv;
                 tmpl = str2num(argv[i]);
                 doVidColor((int) tmpl);
             } else if (stricmp(argv[i], "indisp") ==0) {
-                doIDisp();                
+                doIDisp();
+            } else if (stricmp(argv[i], "inswitch") ==0) {
+                doISwitch();
             } else if (stricmp(argv[i], "vidcolorpick") ==0) {
                 doVidPick();
             } else if (stricmp(argv[i], "info") ==0) {

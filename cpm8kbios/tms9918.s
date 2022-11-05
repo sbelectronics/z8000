@@ -18,10 +18,20 @@
 .equ TMS_CMD, 0x63
 .equ TMS_ACR, 0x65
 
-.equ TMS_ROWS, 24
-.equ TMS_COLS, 40
+.equ V9958_ROWS, 24
+.equ V9958_COLS, 80
+.equ V9958_FONTADDR, 0x1000
+
+.equ TMS9918_ROWS, 24
+.equ TMS9918_COLS, 40
+.equ TMS9918_FONTADDR, 0x800
 
 .macro TMS_IODELAY
+   NOP
+   NOP
+   NOP
+   NOP
+   NOP
    NOP
    NOP
    NOP
@@ -58,8 +68,8 @@ tms_vdaini:
 
 tms_vdaqry:
     ld       r1, #0x00
-    ldb      rl2, #TMS_ROWS
-    ldb      rh2, #TMS_COLS
+    ldb      rl2, tms_rowsb
+    ldb      rh2, tms_colsb
     clr      r0
     ret
 
@@ -70,7 +80,7 @@ tms_vdares:
     clr      r1                        ! row=0, col=0
     call     tms_xy
     ldb      rl1, #0x20                ! space
-    ld       r2, #(TMS_ROWS*TMS_COLS)  ! whole screen
+    ld       r2, tms_rowsTimesCols     ! whole screen
     call     tms_fill
     clr      r1
     call     tms_xy                    ! move to r0, c0
@@ -167,6 +177,20 @@ tms_setcolor:
     ldb    rl1, rl5
     jp     tms_set
 
+    ldb    rh1, #0x08
+    ldb    rl1, #0x80
+    call   tms_set
+
+    ldb    rh1, #0x09
+    ldb    rl1, #0x00
+    call   tms_set
+
+    ldb    rh1, #0x0A
+    ldb    rl1, #0x00
+    call   tms_set
+
+    ret
+
 !------------------------------------------------------------------------------
 ! tms_wr
 ! input:
@@ -174,6 +198,19 @@ tms_setcolor:
 
 tms_wr:
     push	@r15, r1
+
+    .if VIDEO_V9958 == 1
+    ! CLEAR R#14 FOR V9958
+    clrb    rl1
+    outb    #TMS_CMD, rl1
+    ldb     rl1, #0x8E
+    outb    #TMS_CMD, rl1
+    TMS_IODELAY
+    ! restore r1 and then save it again
+    pop     r1, @r15
+    push	@r15, r1
+    .endif
+
     or      r1, #0x4000    ! set write bit, bit 14
     call    tms_rd
     pop     r1, @r15
@@ -195,6 +232,7 @@ tms_rd:
 ! tms_probe
 ! output:
 !   r0 = 0 if detected, 1 if not detected
+!   r1 = 0 if tms9918, 1 if V9938/V9958
 ! destroys:
 !   r0
 !   r1
@@ -220,6 +258,31 @@ tms_probe:
     xorb    rl0, #0xFF
     cpb     rl0, #0xA5
     jr      nz, probe_nogood
+
+    ! V9958 autodetect
+
+    ld      r1, #0x0F01        ! register 0x0F, value 0x01
+    call    tms_set            ! set status register pointer to 1
+
+    inb     rl0, #TMS_CMD      ! read the status into rl0 
+    TMS_IODELAY
+
+    srlb    rl0, #1            ! bits 1..5 are the identification
+    andb    rl0, #0x1F         !  0 = V9938, 2 = V9958, (unconfirmed) 8 = tms9918
+
+    cpb     rl0, #0x02
+    jr      z, probe_V9958
+
+    ld      r1, #0x0F00        ! register 0X0F, value 0x00
+    call    tms_set            ! reset status register point to 0
+    clr     r1
+    jr      probe_good
+probe_V9958:
+    ld      r1, #0x0F00        ! register 0X0F, value 0x00
+    call    tms_set            ! reset status register point to 0
+    ld      r1, #1
+
+probe_good:
     clr     r0
     ret
 probe_nogood:
@@ -245,8 +308,8 @@ tms_crtinit1:
     djnz    r1, tms_crtinit1
 
     ldb     rh1, #0                     ! start at register 0
-    ld      r2, #tms_init9918len        ! number of regs to write
-    lda     r3, tms_init9918            ! register data to write
+    ld      r2, tms_initLen             ! number of regs to write
+    ld      r3, tms_initAddr            ! register data to write
 tms_crtinit2:
     ldb     rl1, @r3                    ! load reg data
     call    tms_set
@@ -264,10 +327,10 @@ tms_crtinit2:
 !    r3
 
 tms_loadfont:
-    ld      r1, #0x800
+    ld      r1, tms_fontAddr
     call    tms_wr
 
-    ld      r2, #0x800
+    ld      r2, tms_fontAddr
     lda     r3, tms_font
 tms_loadfont1:
     ldb     rl0, @r3
@@ -305,7 +368,7 @@ tms_setcur:
 
     clrb    rh0                       ! rh0:rl0 = character index
     sll     r0, #3                    ! multiply by 8
-    ld      r1, #0x800                ! offset to start of font table
+    ld      r1, tms_fontAddr          ! offset to start of font table
     add     r1, r0                    ! add glyph index
     call    tms_rd
     ld      r2, #8
@@ -317,7 +380,8 @@ tms_setcur1:
     inc     r3, #1
     djnz    r2, tms_setcur1
 
-    ld      r1, #(0x800 + (255*8))    ! offset of font for char 255
+    ld      r1, tms_fontAddr
+    add     r1, #(255*8)              ! offset of font for char 255
     call    tms_wr
     ld      r2, #8
     lda     r3, tms_buf
@@ -379,7 +443,7 @@ tms_xy2idx:
      clr    r2
      clr    r3
      ldb    rl3, rl1          ! rr2 = row
-     mult   rr2, #TMS_COLS    ! multiple by cols per row, r2:r3 has our result
+     mult   rr2, tms_colsw    ! XXX multiple by cols per row, r2:r3 has our result
      clr    r0
      ldb    rl0, rh1          ! r0 = col
      add    r3, r0            ! r3 = row*TMS_COLS+col
@@ -434,13 +498,14 @@ tms_fill1:
 
 tms_scroll:
      clr     r1                ! r1 will hold the row pointer
-     ld      r2, #(TMS_ROWS-1) ! r2 counts the number of rows left to do
+     ld      r2, tms_rowsw     ! r2 counts the number of rows left to do
+     decb    rl2, #1
 tms_scroll0:
-     add     r1, #TMS_COLS     ! point to next row source
+     add     r1, tms_colsw     ! point to next row source
      call    tms_rd
-     sub     r1, #TMS_COLS     ! point back to destination row
+     sub     r1, tms_colsw     ! point back to destination row
      lda     r3, tms_buf       ! r3 is buffer address
-     ldb     rh0, #TMS_COLS    ! rh0 is column counter
+     ldb     rh0, tms_colsb    ! rh0 is column counter
 tms_scroll1:
      inb     rl0, #TMS_DATA    ! read byte from row n+1 into the buffer
      TMS_IODELAY
@@ -450,7 +515,7 @@ tms_scroll1:
 
      call    tms_wr            ! r1 still has destination row addr
      lda     r3, tms_buf       ! r3 is buffer address
-     ldb     rh0, #TMS_COLS    ! rh0 is column counter
+     ldb     rh0, tms_colsb    ! rh0 is column counter
 tms_scroll2:                    
      ldb     rl0, @r3          ! read byte from buffer
      outb    #TMS_DATA, rl0    ! write byte from buffer to row n
@@ -458,13 +523,13 @@ tms_scroll2:
      inc     r3, #1
      dbjnz   rh0, tms_scroll2
 
-     add     r1, #TMS_COLS     ! go to next row
+     add     r1, tms_colsw     ! go to next row
      djnz    r2, tms_scroll0
 
                                ! r1 is now pointing to bottom row
      call    tms_wr            ! write a row of blanks
      ldb     rl0, #0x20        ! blank character
-     ldb     rh0, #TMS_COLS
+     ldb     rh0, tms_colsb
 tms_scroll3:
      outb    #TMS_DATA, rl0
      TMS_IODELAY
@@ -480,8 +545,29 @@ tty_init:
     call    tms_probe
     test    r0
     jr      nz, no_tms
+
+    test    r1
+    jr      nz, tty_init_V9958
+    ld      tms_initLen, #tms_init9918len
+    ld      tms_initAddr, #tms_init9918    
+    ld      tms_fontAddr, #TMS9918_FONTADDR
+    ldb     tms_rowsb, #TMS9918_ROWS
+    ldb     tms_colsb, #TMS9918_COLS
+    ld      tms_rowsTimesCols, #(TMS9918_ROWS*TMS9918_COLS)
     lda     r4, tmsmsg
     call    puts
+    jr      tty_init_0
+tty_init_V9958:
+    ld      tms_initLen, #tms_init9958len
+    ld      tms_initAddr, #tms_init9958
+    ld      tms_fontAddr, #V9958_FONTADDR
+    ldb     tms_rowsb, #V9958_ROWS
+    ldb     tms_colsb, #V9958_COLS
+    ld      tms_rowsTimesCols, #(V9958_ROWS*V9958_COLS)
+    lda     r4, V9958msg
+    call    puts
+
+tty_init_0:
     call    tty_reset
     call    tms_init
     ldb     tty_enable, #1
@@ -565,6 +651,8 @@ tty_reset:
 !
 ! input:
 !   rl1 - character
+! destroys:
+!   r1
 
 tty_dochar:
     test   tty_enable
@@ -585,8 +673,9 @@ have_tty:
 not_other_ctl:
     call   tms_vdawrc
     incb   tty_col, #1
-    cpb    tty_col, #TMS_COLS
-    jr     ge, past_eol
+    ldb    rh1, tms_colsb
+    cpb    rh1, tty_col
+    jr     le, past_eol
     ret
 past_eol:
     call   tty_cr
@@ -596,7 +685,7 @@ tty_ff:
     ld     tty_pos, #0
     call   tty_xy
     ldb    rl1, #0x20
-    ld     r2, #(TMS_COLS * TMS_ROWS)
+    ld     r2, tms_rowsTimesCols
     call   tms_vdafil
     jp     tty_xy
 
@@ -613,8 +702,10 @@ tty_cr:
     jp     tty_xy
 
 tty_lf:
-    cpb    tty_row, #(TMS_ROWS-1)
-    jr     ge, tty_lf1
+    ldb    rh1, tms_rowsb
+    decb   rh1, #1
+    cpb    rh1, tty_row
+    jr     le, tty_lf1
     incb   tty_row, #1
     jp     tty_xy
 tty_lf1:
@@ -655,6 +746,23 @@ tms_buf:
 
     .even
 
+tms_initLen:
+    .word    0
+tms_initAddr:
+    .word    0
+tms_fontAddr:
+    .word    0
+tms_rowsTimesCols:
+    .word    0
+tms_rowsw:
+    .byte    0
+tms_rowsb:
+    .byte    0
+tms_colsw:
+    .byte    0
+tms_colsb:
+    .byte    0
+
 tty_pos:
 tty_col:
     .byte    0
@@ -665,6 +773,20 @@ tty_enable:
 
 !------------------------------------------------------------------------------
 	sect	.rodata
+
+.equ tms_init9958len, 11
+tms_init9958:
+	.byte	0x04		! REG 0 - NO EXTERNAL VID
+	.byte	0x50		! REG 1 - ENABLE SCREEN, SET MODE 1
+	.byte	0x03		! REG 2 - PATTERN NAME TABLE := 0
+	.byte	0x00		! REG 3 - NO COLOR TABLE
+	.byte	0x02		! REG 4 - SET PATTERN GENERATOR TABLE TO $800
+	.byte	0x00		! REG 5 - SPRITE ATTRIBUTE IRRELEVANT
+	.byte	0x00		! REG 6 - NO SPRITE GENERATOR TABLE
+	.byte	0xF4		! REG 7 - WHITE ON GREEN
+    .byte   0x80        ! REG 8 - COLOUR BUS INPUT, DRAM 16K
+    .byte   0x00        ! REG 9
+    .byte   0x00        ! REG 10 - COLOUR TABLE A14-A16 (TMS_FNTVADDR - $1000)
 
 .equ tms_init9918len, 8
 tms_init9918:
@@ -688,9 +810,11 @@ tms_init9918:
 
 tmsmsg:
     .asciz  "TMS9918 detected. intializing\r\n"
+V9958msg:
+    .asciz  "V9958 detected. intializing\r\n"
 
 notmsmsg:
-    .asciz  "TMS9918 not detected. not intializing\r\n"    
+    .asciz  "TMS9918 or V9958 not detected. not intializing\r\n"    
 
 tms_font:
  .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3C, 0x3C, 0x30, 0x30, 0x30
