@@ -3,6 +3,10 @@
 !   TMS9918 video driver
 !   Based on RomWBW TMS driver by Douglas Goodall and Wayne Warthen
 !
+!   Supports for the TMS9918 and the Yamaha V9958. Note that the boards
+!   themselves are much different though the registers of the 9918 are
+!   pretty much a subset of the 9958.
+!
 !   Copyright(c) 2022 smbaker
 
 	.include "biosdef.s"
@@ -259,7 +263,11 @@ tms_probe:
     cpb     rl0, #0xA5
     jr      nz, probe_nogood
 
-    ! V9958 autodetect
+    ! V9958 autodetect. We do this by reading status register 1. The
+    ! TMS9918 only has a singe status register (0). Presumably if we
+    ! try this on the 9918, then we'll end up reading 0 instead of 1,
+    ! and we won't get the V9958 ident code. Experimentation seems to
+    ! confirm this works as expected.
 
     ld      r1, #0x0F01        ! register 0x0F, value 0x01
     call    tms_set            ! set status register pointer to 1
@@ -548,8 +556,8 @@ tty_init:
 
     test    r1
     jr      nz, tty_init_V9958
-    ld      tms_initLen, #tms_init9918len
-    ld      tms_initAddr, #tms_init9918    
+    ld      tms_initLen, #tms_init9918len         ! Load up settings that will be for 40x24
+    ld      tms_initAddr, #tms_init9918           ! mode on the 9918.
     ld      tms_fontAddr, #TMS9918_FONTADDR
     ldb     tms_rowsb, #TMS9918_ROWS
     ldb     tms_colsb, #TMS9918_COLS
@@ -558,8 +566,8 @@ tty_init:
     call    puts
     jr      tty_init_0
 tty_init_V9958:
-    ld      tms_initLen, #tms_init9958len
-    ld      tms_initAddr, #tms_init9958
+    ld      tms_initLen, #tms_init9958len         ! Load up settings that will be for 80x24
+    ld      tms_initAddr, #tms_init9958           ! mode on the 9958.
     ld      tms_fontAddr, #V9958_FONTADDR
     ldb     tms_rowsb, #V9958_ROWS
     ldb     tms_colsb, #V9958_COLS
