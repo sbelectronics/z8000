@@ -142,13 +142,13 @@ cio_init_detected:
 !
 
 cio_testpattern_2:
-    ld      r0, #0x0A       ! 012
+    ldb     rl0, #0x0A       ! 012
     call    cio_set_octal_l
 
-    ld      r0, #0xE5       ! 345
+    ldb     rl0, #0xE3       ! 343
     call    cio_set_octal_m
 
-    ld      r0, #0x1B8       ! 670
+    ldb     rl0, #0x88       ! 210
     call    cio_set_octal_r
     ret
 
@@ -319,22 +319,26 @@ cio_set_octal_l:
     push	@r15, r0
     push	@r15, r1
 
-    ld      r1, r0
+    clr     r1
+    ldb     rl1, rl0
     srl     r1, #6
     and     r1, #0x07
-    ldb     rh1, digit_7seg(r1)
-    ldb     digits_l, rh1
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_l, rh0
 
-    ld      r1, r0
+    clr     r1
+    ldb     rl1, rl0
     srl     r1, #3
     and     r1, #0x07
-    ldb     rh1, digit_7seg(r1)
-    ldb     digits_l+1, rh1
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_l+1, rh0
 
-    ld      r1, r0
+    clr     r1
+    ldb     rl1, rl0
     and     r1, #0x07
-    ldb     rh1, digit_7seg(r1)
-    ldb     digits_l+2, rh1
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_l+2, rh0
+
 
     pop    r1, @r15
     pop    r0, @r15
@@ -350,22 +354,25 @@ cio_set_octal_m:
     push	@r15, r0
     push	@r15, r1
 
-    ld      r1, r0
+    clr     r1
+    ldb     rl1, rl0
     srl     r1, #6
     and     r1, #0x07
-    ldb     rh1, digit_7seg(r1)
-    ldb     digits_m, rh1
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_m, rh0
 
-    ld      r1, r0
+    clr     r1
+    ldb     rl1, rl0
     srl     r1, #3
     and     r1, #0x07
-    ldb     rh1, digit_7seg(r1)
-    ldb     digits_m+1, rh1
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_m+1, rh0
 
-    ld      r1, r0
+    clr     r1
+    ldb     rl1, rl0
     and     r1, #0x07
-    ldb     rh1, digit_7seg(r1)
-    ldb     digits_m+2, rh1
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_m+2, rh0
 
     pop    r1, @r15
     pop    r0, @r15
@@ -381,22 +388,25 @@ cio_set_octal_r:
     push	@r15, r0
     push	@r15, r1
 
-    ld      r1, r0
+    clr     r1
+    ldb     rl1, rl0
     srl     r1, #6
     and     r1, #0x07
-    ldb     rh1, digit_7seg(r1)
-    ldb     digits_r, rh1
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_r, rh0
 
-    ld      r1, r0
+    clr     r1
+    ldb     rl1, rl0
     srl     r1, #3
     and     r1, #0x07
-    ldb     rh1, digit_7seg(r1)
-    ldb     digits_r+1, rh1
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_r+1, rh0
 
-    ld      r1, r0
+    clr     r1
+    ldb     rl1, rl0
     and     r1, #0x07
-    ldb     rh1, digit_7seg(r1)
-    ldb     digits_r+2, rh1
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_r+2, rh0
 
     pop    r1, @r15
     pop    r0, @r15
