@@ -132,20 +132,45 @@ cio_init_detected:
     ldb     rl0, #0xE0
     outb    #DIGSEL, rl0     ! set speaker, refresh-enable, and monitor bits
 
+    call    cio_testpattern_2
+
+    ei      vi, nvi
+    ret
+
+!------------------------------------------------------------------------------
+! cio_testpattern_2
+!
+
+cio_testpattern_2:
+    ld      r0, #0x0A       ! 012
+    call    cio_set_octal_l
+
+    ld      r0, #0xE5       ! 345
+    call    cio_set_octal_m
+
+    ld      r0, #0x1B8       ! 670
+    call    cio_set_octal_r
+    ret
+
+!------------------------------------------------------------------------------
+! cio_testpattern_1
+!
+
+cio_testpattern_1:
     ldb     rh0, #0
-    ldb     rl0, #0
+    ldb     rl0, #8
     call    cio_set_digit
 
     ldb     rh0, #1
-    ldb     rl0, #1
+    ldb     rl0, #7
     call    cio_set_digit
 
     ldb     rh0, #2
-    ldb     rl0, #2
+    ldb     rl0, #6
     call    cio_set_digit
 
     ldb     rh0, #3
-    ldb     rl0, #3
+    ldb     rl0, #5
     call    cio_set_digit
 
     ldb     rh0, #4
@@ -153,22 +178,20 @@ cio_init_detected:
     call    cio_set_digit
 
     ldb     rh0, #5
-    ldb     rl0, #5
+    ldb     rl0, #3
     call    cio_set_digit
 
     ldb     rh0, #6
-    ldb     rl0, #6
+    ldb     rl0, #2
     call    cio_set_digit
 
     ldb     rh0, #7
-    ldb     rl0, #7
+    ldb     rl0, #1
     call    cio_set_digit
 
     ldb     rh0, #8
-    ldb     rl0, #8
+    ldb     rl0, #0
     call    cio_set_digit
-
-    ei      vi, nvi
     ret
 
 !------------------------------------------------------------------------------
@@ -287,7 +310,7 @@ cio_set_digit:
     ret
 
 !------------------------------------------------------------------------------
-! cio_set_octal
+! cio_set_octal_l
 !
 ! input:
 !   rl0 = value 0-255
@@ -296,26 +319,84 @@ cio_set_octal_l:
     push	@r15, r0
     push	@r15, r1
 
-    clr     r1
-    ldb     rl1, rl0
-    srl     r1, #5
+    ld      r1, r0
+    srl     r1, #6
     and     r1, #0x07
-    ldb     rl0, digit_7seg(r1)
-    ldb     digits_l, rl0
+    ldb     rh1, digit_7seg(r1)
+    ldb     digits_l, rh1
 
-    clr     r1
-    ldb     rl1, rl0
+    ld      r1, r0
     srl     r1, #3
     and     r1, #0x07
-    ldb     rl0, digit_7seg(r1)
-    ldb     digits_l+1, rl0
+    ldb     rh1, digit_7seg(r1)
+    ldb     digits_l+1, rh1
 
-    clr     r1
-    ldb     rl1, rl0
+    ld      r1, r0
+    and     r1, #0x07
+    ldb     rh1, digit_7seg(r1)
+    ldb     digits_l+2, rh1
+
+    pop    r1, @r15
+    pop    r0, @r15
+    ret
+
+!------------------------------------------------------------------------------
+! cio_set_octal_m
+!
+! input:
+!   rl0 = value 0-255
+
+cio_set_octal_m:
+    push	@r15, r0
+    push	@r15, r1
+
+    ld      r1, r0
+    srl     r1, #6
+    and     r1, #0x07
+    ldb     rh1, digit_7seg(r1)
+    ldb     digits_m, rh1
+
+    ld      r1, r0
     srl     r1, #3
     and     r1, #0x07
-    ldb     rl0, digit_7seg(r1)
-    ldb     digits_l+2, rl0
+    ldb     rh1, digit_7seg(r1)
+    ldb     digits_m+1, rh1
+
+    ld      r1, r0
+    and     r1, #0x07
+    ldb     rh1, digit_7seg(r1)
+    ldb     digits_m+2, rh1
+
+    pop    r1, @r15
+    pop    r0, @r15
+    ret
+
+!------------------------------------------------------------------------------
+! cio_set_octal_r
+!
+! input:
+!   rl0 = value 0-255
+
+cio_set_octal_r:
+    push	@r15, r0
+    push	@r15, r1
+
+    ld      r1, r0
+    srl     r1, #6
+    and     r1, #0x07
+    ldb     rh1, digit_7seg(r1)
+    ldb     digits_r, rh1
+
+    ld      r1, r0
+    srl     r1, #3
+    and     r1, #0x07
+    ldb     rh1, digit_7seg(r1)
+    ldb     digits_r+1, rh1
+
+    ld      r1, r0
+    and     r1, #0x07
+    ldb     rh1, digit_7seg(r1)
+    ldb     digits_r+2, rh1
 
     pop    r1, @r15
     pop    r0, @r15
