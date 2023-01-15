@@ -102,15 +102,21 @@ mon_state_idle_not_mem:
 ! mon_state_addr1
 
 mon_state_addr1:
-    clr    mon_addr
     cpb    rl0, #7
-    jr     gt, mon_state_addr1_not_oct
+    jp     gt, mon_state_addr_not_oct
     ldb    rh0, mon_addr_hi
     sllb   rh0, #3
     orb    rh0, rl0
     ldb    mon_addr_hi, rh0
     ldb    mon_state, #STATE_MEM_ADDR2
-mon_state_addr1_not_oct:
+    ret
+
+! this is where we go for all the addr states if a non-digit was pressed
+mon_state_addr_not_oct:
+    cpb    rl0, #KEY_ALTER
+    jp     z, go_state_mem_alter
+    cpb    rl0, #KEY_MEM
+    jp     z, go_state_mem_display
     ret
 
 !------------------------------------------------------------------------------
@@ -118,13 +124,12 @@ mon_state_addr1_not_oct:
 
 mon_state_addr2:
     cpb    rl0, #7
-    jr     gt, mon_state_addr2_not_oct
+    jp     gt, mon_state_addr_not_oct
     ldb    rh0, mon_addr_hi
     sllb   rh0, #3
     orb    rh0, rl0
     ldb    mon_addr_hi, rh0
     ldb    mon_state, #STATE_MEM_ADDR3
-mon_state_addr2_not_oct:
     ret
 
 !------------------------------------------------------------------------------
@@ -132,13 +137,12 @@ mon_state_addr2_not_oct:
 
 mon_state_addr3:
     cpb    rl0, #7
-    jr     gt, mon_state_addr3_not_oct
+    jp     gt, mon_state_addr_not_oct
     ldb    rh0, mon_addr_hi
     sllb   rh0, #3
     orb    rh0, rl0
     ldb    mon_addr_hi, rh0
     ldb    mon_state, #STATE_MEM_ADDR4
-mon_state_addr3_not_oct:
     ret
 
 !------------------------------------------------------------------------------
@@ -146,13 +150,12 @@ mon_state_addr3_not_oct:
 
 mon_state_addr4:
     cpb    rl0, #7
-    jr     gt, mon_state_addr4_not_oct
+    jp     gt, mon_state_addr_not_oct
     ldb    rh0, mon_addr_lo
     sllb   rh0, #3
     orb    rh0, rl0
     ldb    mon_addr_lo, rh0
     ldb    mon_state, #STATE_MEM_ADDR5
-mon_state_addr4_not_oct:
     ret
 
 !------------------------------------------------------------------------------
@@ -160,13 +163,12 @@ mon_state_addr4_not_oct:
 
 mon_state_addr5:
     cpb    rl0, #7
-    jr     gt, mon_state_addr5_not_oct
+    jp     gt, mon_state_addr_not_oct
     ldb    rh0, mon_addr_lo
     sllb   rh0, #3
     orb    rh0, rl0
     ldb    mon_addr_lo, rh0
     ldb    mon_state, #STATE_MEM_ADDR6
-mon_state_addr5_not_oct:
     ret
 
 !------------------------------------------------------------------------------
@@ -174,13 +176,12 @@ mon_state_addr5_not_oct:
 
 mon_state_addr6:
     cpb    rl0, #7
-    jr     gt, mon_state_addr6_not_oct
+    jp     gt, mon_state_addr_not_oct
     ldb    rh0, mon_addr_lo
     sllb   rh0, #3
     orb    rh0, rl0
     ldb    mon_addr_lo, rh0
     jp     go_state_mem_display
-mon_state_addr6_not_oct:
     ret
 
 !------------------------------------------------------------------------------
