@@ -14,6 +14,9 @@
     .global cio_divisor
     .global cio_khz
     .global cio_set_divisor
+    .global cio_set_octal_addr
+    .global cio_set_octal_r
+    .global cio_dots
 
 	unsegm
 	sect	.text
@@ -150,6 +153,7 @@ cio_init_detected:
     outb    #DIGSEL, rl0     ! set speaker, refresh-enable, and monitor bits
 
     call    cio_testpattern_2
+    call    go_state_mem_display
 
     ei      vi, nvi
     ret
@@ -264,7 +268,24 @@ cio_nvi:
     jr    nz, cio_nvi_nowrap
     inc   cio_count_b3, #1
 cio_nvi_nowrap:
+    
+    ! every 32 refreshes, check to see if we want to calculate a display update
+    ldb   rl0, cio_count_b0
+    andb  rl0, #0x1F
+    jr    nz, cio_nvi_not_update
+    call  mon_update
+
+    ! also every 32 refreshes, update the dotpos
+    incb  cio_dotpos, #1
+    cpb   cio_dotpos, #9
+    jr    nz, not_dot9
+    ldb   cio_dotpos, #0
+not_dot9:
+cio_nvi_not_update:
+
     call  cio_multiplex_digit
+
+    call  cio_scankey
 
     ldb   rh0, #CIO_PCSA
     ldb   rl0, #0b10100000    ! clear IP
@@ -290,6 +311,18 @@ cio_multiplex_digit:
     ldb   rh0, rl1
     orb   rh0, #0xE0           ! set speaker, refresh-enable, and monitor bits
 
+    cpb   cio_dots, #0
+    jr    nz, not_dots0
+    orb   rl0, #0x80           ! dot mode 0 = turn off all dots
+    jr    done_dots
+not_dots0:
+    cpb   cio_dots, #1         ! dot mode 1 = turn on all dots
+    jr    z, done_dots
+    cpb   rl1, cio_dotpos      ! dot mode 2 = moving dots
+    jr    z, done_dots
+    orb   rl0, #0x80
+done_dots:
+ 
     incb  rh0, #1              ! first digit on display board is at 1, not 0
     outb  #DIGSEL, rh0         ! output digit index
     outb  #DIGVAL, rl0         ! output digit value
@@ -312,20 +345,21 @@ cio_scankey:
     jr     nz, cio_scankey_different
 
     incb   key_same_count, #1
-    cpb    key_same_count, #100
+    cpb    key_same_count, #10
     jr     z, key_same_enough
     ret                              ! not long enough debounce -- keep waiting
 
 key_same_enough:
-    lda    r1, scancodes
+    lda    r1, scancodes+15
     ld     r2, #16                   ! check 16 scancodes
 next_scancode:
     cpb    rl0, @r1
     jr     nz, not_this_scancode
     ldb    rl0, rl2                  ! put scancode in rl2
     decb   rl0, #1
-    jp     cio_keydown
+    jp     mon_keydown
 not_this_scancode:
+    dec    r1, #1
     djnz   r2, next_scancode
     ret                              ! no match
 
@@ -333,30 +367,6 @@ cio_scankey_different:
     clrb   key_same_count
     ldb    key_last, rl0
     ret
-
-!------------------------------------------------------------------------------
-! mon_keydown
-!
-! input:
-!   rl0: keypad scancode
-
-mon_keydown:
-    cpb    mon_state, STATE_IDLE
-    jp     z, mom_state_idle
-    cpb    mon_state, STATE_MEM_ADDR1
-    jp     z, mon_state_addr1
-    cpb    mon_state, STATE_MEM_ADDR2
-    jp     z, mon_state_addr2
-    cpb    mon_state, STATE_MEM_ADDR3
-    jp     z, mon_state_addr3
-    cpb    mon_state, STATE_MEM_ADDR4
-    jp     z, mon_state_addr4
-    cpb    mon_state, STATE_MEM_ADDR5
-    jp     z, mon_state_addr5
-    cpb    mon_state, STATE_MEM_ADDR6
-    jp     z, mon_state_addr6
-    cpb    mon_state, STATE_MEM_DISPLAY
-    jp     z, mon_mem_display
 
 !------------------------------------------------------------------------------
 ! cio_set_digit
@@ -597,6 +607,12 @@ digits_r:
     .byte 0x40
     .byte 0x80
     .byte 0x1F
+
+cio_dots:
+    .byte 0x00
+
+cio_dotpos:
+    .byte 0x00
 
 key_last:
     .byte 0xFF
