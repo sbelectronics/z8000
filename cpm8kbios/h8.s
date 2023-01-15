@@ -97,7 +97,24 @@
 
 .equ CIO_CV, 0x1F
 
-    
+.equ KEY_PLUS, 0x0A
+.equ KEY_MINUS, 0x0B
+.equ KEY_STAR, 0x0C
+.equ KEY_SLASH, 0x0D
+.equ KEY_POUND, 0x0E
+.equ KEY_DOT, 0x0F
+
+.equ KEY_MEM, KEY_POUND
+.equ KEY_ALTER, KEY_SLASH
+
+.equ STATE_IDLE, 0
+.equ STATE_MEM_ADDR1, 1
+.equ STATE_MEM_ADDR2, 2
+.equ STATE_MEM_ADDR3, 3
+.equ STATE_MEM_ADDR4, 4
+.equ STATE_MEM_ADDR5, 5
+.equ STATE_MEM_ADDR6, 6
+.equ STATE_MEM_DISPLAY, 7
 
 !------------------------------------------------------------------------------
 ! cio_init
@@ -264,7 +281,6 @@ cio_nvi_out:
     pop   r0, @r15
     ret
 
-
 !------------------------------------------------------------------------------
 
 cio_multiplex_digit:
@@ -285,6 +301,62 @@ cio_multiplex_digit:
 cio_multiplex_digit_nowrap:
     ld    digindex, r1
     ret
+
+!------------------------------------------------------------------------------
+! cio_scankey
+!
+
+cio_scankey:
+    inb    rl0, #DIGSEL
+    cpb    rl0, key_last
+    jr     nz, cio_scankey_different
+
+    incb   key_same_count, #1
+    cpb    key_same_count, #100
+    jr     z, key_same_enough
+    ret                              ! not long enough debounce -- keep waiting
+
+key_same_enough:
+    lda    r1, scancodes
+    ld     r2, #16                   ! check 16 scancodes
+next_scancode:
+    cpb    rl0, @r1
+    jr     nz, not_this_scancode
+    ldb    rl0, rl2                  ! put scancode in rl2
+    decb   rl0, #1
+    jp     cio_keydown
+not_this_scancode:
+    djnz   r2, next_scancode
+    ret                              ! no match
+
+cio_scankey_different:
+    clrb   key_same_count
+    ldb    key_last, rl0
+    ret
+
+!------------------------------------------------------------------------------
+! mon_keydown
+!
+! input:
+!   rl0: keypad scancode
+
+mon_keydown:
+    cpb    mon_state, STATE_IDLE
+    jp     z, mom_state_idle
+    cpb    mon_state, STATE_MEM_ADDR1
+    jp     z, mon_state_addr1
+    cpb    mon_state, STATE_MEM_ADDR2
+    jp     z, mon_state_addr2
+    cpb    mon_state, STATE_MEM_ADDR3
+    jp     z, mon_state_addr3
+    cpb    mon_state, STATE_MEM_ADDR4
+    jp     z, mon_state_addr4
+    cpb    mon_state, STATE_MEM_ADDR5
+    jp     z, mon_state_addr5
+    cpb    mon_state, STATE_MEM_ADDR6
+    jp     z, mon_state_addr6
+    cpb    mon_state, STATE_MEM_DISPLAY
+    jp     z, mon_mem_display
 
 !------------------------------------------------------------------------------
 ! cio_set_digit
@@ -413,6 +485,19 @@ cio_set_octal_r:
     ret
 
 !------------------------------------------------------------------------------
+! cio_set_octal_addr
+!
+! input:
+!   r0 = value 0-65535
+
+cio_set_octal_addr:
+    call   cio_set_octal_m
+    exb    rh0, rl0
+    call   cio_set_octal_l
+    exb    rh0, rl0
+    ret
+
+!------------------------------------------------------------------------------
 ! cio_set
 !
 ! input:
@@ -513,6 +598,11 @@ digits_r:
     .byte 0x80
     .byte 0x1F
 
+key_last:
+    .byte 0xFF
+key_same_count:
+    .byte 0x00
+
 !------------------------------------------------------------------------------
     sect .rdata
 
@@ -541,6 +631,40 @@ digit_7seg:
 	.byte	0b01110001	! 7
 	.byte	0b00000000	! 8
 	.byte	0b00100000	! 9
+
+reg_7seg:
+reg_7seg_sp:
+    .byte  0b10011000, 0b10100100
+reg_7seg_af:
+    .byte  0b10011100, 0b10010000
+reg_7seg_bc:
+    .byte  0b10001101, 0b10000110
+reg_7seg_de:
+	.byte  0b10001100, 0b11000010
+reg_7seg_hl:
+	.byte  0b10001111, 0b10010010
+reg_7seg_pc:
+    .byte  0b11001110, 0b10011000
+
+scancodes:
+    .byte 0b11111110
+    .byte 0b11111100
+    .byte 0b11111010
+    .byte 0b11111000
+    .byte 0b11110110
+    .byte 0b11110100
+    .byte 0b11110010
+    .byte 0b11110000
+    .byte 0b11101111
+    .byte 0b11001111
+    .byte 0b10101111
+    .byte 0b10001111
+    .byte 0b01101111
+    .byte 0b01001111
+    .byte 0b00101111
+    .byte 0b00001111
+
+
 
 ciomsg:
     .asciz  "CIO detected. intializing\r\n"

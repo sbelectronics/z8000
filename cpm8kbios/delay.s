@@ -29,6 +29,14 @@ delay_1ms_loop:
 	pop	    r0, @r15
     ret
 
+delay_20ms:
+	push	@r15, r0
+    ld      r0, #18000                ! 20 times the 1ms number
+delay_20ms_loop:
+    djnz    r0, delay_1ms_loop        ! 11 cycles per djnz 
+	pop	    r0, @r15
+    ret
+
 delay_240ms:
 	push	@r15, r0
     ld      r0, #240
