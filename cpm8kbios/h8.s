@@ -16,6 +16,7 @@
     .global cio_set_divisor
     .global cio_set_octal_addr
     .global cio_set_octal_r
+    .global cio_set_reg_r
     .global cio_dots
 
 	unsegm
@@ -153,7 +154,7 @@ cio_init_detected:
     outb    #DIGSEL, rl0     ! set speaker, refresh-enable, and monitor bits
 
     call    cio_testpattern_2
-    call    go_state_mem_display
+    call    mon_start
 
     ei      vi, nvi
     ret
@@ -495,6 +496,35 @@ cio_set_octal_r:
     ret
 
 !------------------------------------------------------------------------------
+! cio_set_reg_r
+!
+! input:
+!   rl0 = register number
+
+cio_set_reg_r:
+    push	@r15, r0
+    push	@r15, r1
+
+    clr     r1
+    ldb     rl1, rl0
+    sll     r1, #2
+
+    ldb     rh0, reg_7seg(r1)
+    ldb     digits_r, rh0
+
+    inc     r1, #1
+    ldb     rh0, reg_7seg(r1)
+    ldb     digits_r+1, rh0
+
+    inc     r1, #1
+    ldb     rh0, reg_7seg(r1)
+    ldb     digits_r+2, rh0
+
+    pop    r1, @r15
+    pop    r0, @r15
+    ret
+
+!------------------------------------------------------------------------------
 ! cio_set_octal_addr
 !
 ! input:
@@ -648,19 +678,23 @@ digit_7seg:
 	.byte	0b00000000	! 8
 	.byte	0b00100000	! 9
 
-reg_7seg:
+obsolete_reg_7seg:
 reg_7seg_sp:
-    .byte  0b10011000, 0b10100100
+    .byte  0b01111111,  0b10100100, 0b10011000, 0b00000000   ! last byte is a pad, for easy multiply
 reg_7seg_af:
-    .byte  0b10011100, 0b10010000
+    .byte  0b01111111,  0b10010000, 0b10011100, 0b00000000
 reg_7seg_bc:
-    .byte  0b10001101, 0b10000110
+    .byte  0b01111111,  0b10000110, 0b10001101, 0b00000000
 reg_7seg_de:
-	.byte  0b10001100, 0b11000010
+	.byte  0b01111111,  0b11000010, 0b10001100, 0b00000000
 reg_7seg_hl:
-	.byte  0b10001111, 0b10010010
+	.byte  0b01111111,  0b10010010, 0b10001111, 0b00000000
+
+reg_7seg:
+reg_7seg_sg:
+    .byte  0b01111111,  0b10100100, 0b10000101, 0b00000000
 reg_7seg_pc:
-    .byte  0b11001110, 0b10011000
+    .byte  0b01111111,  0b10011000, 0b11001110, 0b00000000
 
 scancodes:
     .byte 0b11111110
@@ -679,8 +713,6 @@ scancodes:
     .byte 0b01001111
     .byte 0b00101111
     .byte 0b00001111
-
-
 
 ciomsg:
     .asciz  "CIO detected. intializing\r\n"
