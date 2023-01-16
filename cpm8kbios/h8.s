@@ -18,6 +18,7 @@
     .global cio_set_octal_r
     .global cio_set_reg_r
     .global cio_dots
+    .global cio_radix
 
 	unsegm
 	sect	.text
@@ -402,6 +403,9 @@ cio_set_octal_l:
     push	@r15, r0
     push	@r15, r1
 
+    testb   cio_radix
+    jr      nz, cio_set_hex_l
+
     clr     r1
     ldb     rl1, rl0
     srl     r1, #6
@@ -421,8 +425,26 @@ cio_set_octal_l:
     and     r1, #0x07
     ldb     rh0, digit_7seg(r1)
     ldb     digits_l+2, rh0
+    jp      cio_set_octal_l_ret
 
+cio_set_hex_l:
+    clr     r1
+    ldb     rl1, rl0
+    srl     r1, #4
+    and     r1, #0x0F
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_l, rh0
 
+    clr     r1
+    ldb     rl1, rl0
+    and     r1, #0x0F
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_l+1, rh0
+
+    ldb     rh0, #0b01111111
+    ldb     digits_l+2, rh0
+
+cio_set_octal_l_ret:
     pop    r1, @r15
     pop    r0, @r15
     ret
@@ -436,6 +458,9 @@ cio_set_octal_l:
 cio_set_octal_m:
     push	@r15, r0
     push	@r15, r1
+
+    testb   cio_radix
+    jr      nz, cio_set_hex_m
 
     clr     r1
     ldb     rl1, rl0
@@ -456,7 +481,26 @@ cio_set_octal_m:
     and     r1, #0x07
     ldb     rh0, digit_7seg(r1)
     ldb     digits_m+2, rh0
+    jp      cio_set_octal_m_ret
 
+cio_set_hex_m:
+    clr     r1
+    ldb     rl1, rl0
+    srl     r1, #4
+    and     r1, #0x0F
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_m, rh0
+
+    clr     r1
+    ldb     rl1, rl0
+    and     r1, #0x0F
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_m+1, rh0
+
+    ldb     rh0, #0b01111111
+    ldb     digits_m+2, rh0
+
+cio_set_octal_m_ret:
     pop    r1, @r15
     pop    r0, @r15
     ret
@@ -470,6 +514,9 @@ cio_set_octal_m:
 cio_set_octal_r:
     push	@r15, r0
     push	@r15, r1
+
+    testb   cio_radix
+    jr      nz, cio_set_hex_r
 
     clr     r1
     ldb     rl1, rl0
@@ -490,7 +537,26 @@ cio_set_octal_r:
     and     r1, #0x07
     ldb     rh0, digit_7seg(r1)
     ldb     digits_r+2, rh0
+    jp      cio_set_octal_r_ret
 
+cio_set_hex_r:
+    clr     r1
+    ldb     rl1, rl0
+    srl     r1, #4
+    and     r1, #0x0F
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_r, rh0
+
+    clr     r1
+    ldb     rl1, rl0
+    and     r1, #0x0F
+    ldb     rh0, digit_7seg(r1)
+    ldb     digits_r+1, rh0
+
+    ldb     rh0, #0b01111111
+    ldb     digits_r+2, rh0
+
+cio_set_octal_r_ret:
     pop    r1, @r15
     pop    r0, @r15
     ret
@@ -638,6 +704,9 @@ digits_r:
     .byte 0x80
     .byte 0x1F
 
+cio_radix:
+    .byte 0x00
+
 cio_dots:
     .byte 0x00
 
@@ -677,6 +746,12 @@ digit_7seg:
 	.byte	0b01110001	! 7
 	.byte	0b00000000	! 8
 	.byte	0b00100000	! 9
+    .byte   0b10010000  ! A
+    .byte   0b10000110  ! B
+    .byte   0b10001101  ! C
+    .byte   0b11000010  ! D
+    .byte   0b10001100  ! E
+    .byte   0b10011100  ! F
 
 obsolete_reg_7seg:
 reg_7seg_sp:

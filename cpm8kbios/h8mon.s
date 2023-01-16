@@ -24,6 +24,7 @@
 .equ KEY_MEM, KEY_POUND
 .equ KEY_ALTER, KEY_SLASH
 .equ KEY_REG, KEY_DOT
+.equ KEY_RADIX, 0x03
 
 .equ STATE_IDLE, 0
 .equ STATE_MEM_ADDR1, 0x10
@@ -133,18 +134,31 @@ mon_state_idle:
     jp     z, go_state_mem_addr
     cpb    rl0, #KEY_REG
     jp     z, go_state_reg_display
+    cpb    rl0, #KEY_RADIX
+    jr     nz, mon_state_idle_not_radix
+    ldb    rl0, cio_radix
+    xorb    rl0, #1
+    ldb    cio_radix, rl0
+mon_state_idle_not_radix:
     ret
 
 !------------------------------------------------------------------------------
 ! mon_state_addr1
 
 mon_state_addr1:
+    testb  cio_radix
+    jr     nz, mon_state_addr1_hex
     cpb    rl0, #7
     jp     gt, mon_state_addr_not_oct
     ldb    rh0, mon_addr_hi
     sllb   rh0, #3
     orb    rh0, rl0
     ldb    mon_addr_hi, rh0
+    ldb    mon_state, #STATE_MEM_ADDR2
+    ret
+mon_state_addr1_hex:
+    testb  rl0
+    jp     nz, mon_state_addr_not_oct    ! first digit of hex entry must be 0
     ldb    mon_state, #STATE_MEM_ADDR2
     ret
 
@@ -161,6 +175,8 @@ mon_state_addr_not_oct:
 ! mon_state_addr2
 
 mon_state_addr2:
+    testb  cio_radix
+    jr     nz, mon_state_addr2_hex
     cpb    rl0, #7
     jp     gt, mon_state_addr_not_oct
     ldb    rh0, mon_addr_hi
@@ -169,15 +185,32 @@ mon_state_addr2:
     ldb    mon_addr_hi, rh0
     ldb    mon_state, #STATE_MEM_ADDR3
     ret
+mon_state_addr2_hex:
+    ldb    rh0, mon_addr_hi
+    sllb   rh0, #4
+    orb    rh0, rl0
+    ldb    mon_addr_hi, rh0
+    ldb    mon_state, #STATE_MEM_ADDR3
+    ret
+    
 
 !------------------------------------------------------------------------------
 ! mon_state_addr3
 
 mon_state_addr3:
+    testb  cio_radix
+    jr     nz, mon_state_addr3_hex
     cpb    rl0, #7
     jp     gt, mon_state_addr_not_oct
     ldb    rh0, mon_addr_hi
     sllb   rh0, #3
+    orb    rh0, rl0
+    ldb    mon_addr_hi, rh0
+    ldb    mon_state, #STATE_MEM_ADDR4
+    ret
+mon_state_addr3_hex:
+    ldb    rh0, mon_addr_hi
+    sllb   rh0, #4
     orb    rh0, rl0
     ldb    mon_addr_hi, rh0
     ldb    mon_state, #STATE_MEM_ADDR4
@@ -187,10 +220,19 @@ mon_state_addr3:
 ! mon_state_addr4
 
 mon_state_addr4:
+    testb  cio_radix
+    jr     nz, mon_state_addr4_hex
     cpb    rl0, #7
     jp     gt, mon_state_addr_not_oct
     ldb    rh0, mon_addr_lo
     sllb   rh0, #3
+    orb    rh0, rl0
+    ldb    mon_addr_lo, rh0
+    ldb    mon_state, #STATE_MEM_ADDR5
+    ret
+mon_state_addr4_hex:
+    ldb    rh0, mon_addr_lo
+    sllb   rh0, #4
     orb    rh0, rl0
     ldb    mon_addr_lo, rh0
     ldb    mon_state, #STATE_MEM_ADDR5
@@ -200,6 +242,8 @@ mon_state_addr4:
 ! mon_state_addr5
 
 mon_state_addr5:
+    testb  cio_radix
+    jr     nz, mon_state_addr5_hex
     cpb    rl0, #7
     jp     gt, mon_state_addr_not_oct
     ldb    rh0, mon_addr_lo
@@ -207,6 +251,13 @@ mon_state_addr5:
     orb    rh0, rl0
     ldb    mon_addr_lo, rh0
     ldb    mon_state, #STATE_MEM_ADDR6
+    ret
+mon_state_addr5_hex:
+    ldb    rh0, mon_addr_lo
+    sllb   rh0, #4
+    orb    rh0, rl0
+    ldb    mon_addr_lo, rh0
+    jp     go_state_mem_display
     ret
 
 !------------------------------------------------------------------------------
@@ -246,9 +297,15 @@ mon_state_mem_display_not_alter:
 ! mon_state_alter1
 
 mon_state_alter1:
+    testb  cio_radix
+    jr     nz, mon_state_alter1_hex
     cpb    rl0, #7
     jp     gt, mon_state_alter_not_oct
     call   mon_alter
+    ldb    mon_state, #STATE_MEM_ALTER2
+mon_state_alter1_hex:
+    testb  rl0
+    jp     nz, mon_state_alter_not_oct    ! first digit of hex entry must be 0
     ldb    mon_state, #STATE_MEM_ALTER2
     ret
 
@@ -263,8 +320,14 @@ mon_state_alter_not_oct:
 ! mon_state_alter2
 
 mon_state_alter2:
+    testb  cio_radix
+    jr     nz, mon_state_alter2_hex
     cpb    rl0, #7
     jp     gt, mon_state_alter_not_oct
+    call   mon_alter
+    ldb    mon_state, #STATE_MEM_ALTER3
+    ret
+mon_state_alter2_hex:
     call   mon_alter
     ldb    mon_state, #STATE_MEM_ALTER3
     ret
@@ -273,8 +336,15 @@ mon_state_alter2:
 ! mon_state_alter3
 
 mon_state_alter3:
+    testb  cio_radix
+    jr     nz, mon_state_alter3_hex
     cpb    rl0, #7
     jp     gt, mon_state_alter_not_oct
+    call   mon_alter
+    inc    mon_addr, #1                     ! go to next address
+    ldb    mon_state, #STATE_MEM_ALTER1
+    ret
+mon_state_alter3_hex:
     call   mon_alter
     inc    mon_addr, #1                     ! go to next address
     ldb    mon_state, #STATE_MEM_ALTER1
@@ -292,6 +362,10 @@ mon_alter:
     ldb    rl1, @r2           ! using rl0 won't work because SEG/NONSEG wipe it
 	NONSEG
 
+    testb  cio_radix
+    jr     z, mon_state_alter_oct
+    sllb   rl1, #1            ! hex needs one more shift than octal
+mon_state_alter_oct:
     sllb   rl1, #3
     orb    rl1, rh1
 
@@ -304,6 +378,8 @@ mon_alter:
 ! mon_state_reg_alter1
 
 mon_state_reg_alter1:
+    testb  cio_radix
+    jr     nz, mon_state_reg_alter1_hex
     cpb    rl0, #7
     jp     gt, mon_state_reg_alter_not_oct
     call   mon_get_reg_addr
@@ -313,6 +389,10 @@ mon_state_reg_alter1:
     ldb    @r1, rh0
     ldb    mon_state, #STATE_REG_ALTER2
     ret
+mon_state_reg_alter1_hex:
+    testb  rl0
+    jp     nz, mon_state_reg_alter_not_oct    ! first digit of hex entry must be 0
+    ldb    mon_state, #STATE_REG_ALTER2
 
 ! this is where we go for all the addr states if a non-digit was pressed
 mon_state_reg_alter_not_oct:
@@ -325,6 +405,8 @@ mon_state_reg_alter_not_oct:
 ! mon_state_reg_alter2
 
 mon_state_reg_alter2:
+    testb  cio_radix
+    jr     nz, mon_state_reg_alter2_hex
     cpb    rl0, #7
     jp     gt, mon_state_reg_alter_not_oct
     call   mon_get_reg_addr
@@ -334,11 +416,21 @@ mon_state_reg_alter2:
     ldb    @r1, rh0
     ldb    mon_state, #STATE_REG_ALTER3
     ret
+mon_state_reg_alter2_hex:
+    call   mon_get_reg_addr
+    ldb    rh0, @r1
+    sllb   rh0, #4
+    orb    rh0, rl0
+    ldb    @r1, rh0
+    ldb    mon_state, #STATE_REG_ALTER3
+    ret
 
 !------------------------------------------------------------------------------
 ! mon_state_reg_alter3
 
 mon_state_reg_alter3:
+    testb  cio_radix
+    jr     nz, mon_state_reg_alter3_hex
     cpb    rl0, #7
     jp     gt, mon_state_reg_alter_not_oct
     call   mon_get_reg_addr
@@ -348,11 +440,21 @@ mon_state_reg_alter3:
     ldb    @r1, rh0
     ldb    mon_state, #STATE_REG_ALTER4
     ret
+mon_state_reg_alter3_hex:
+    call   mon_get_reg_addr
+    ldb    rh0, @r1
+    sllb   rh0, #4
+    orb    rh0, rl0
+    ldb    @r1, rh0
+    ldb    mon_state, #STATE_REG_ALTER4
+    ret
 
 !------------------------------------------------------------------------------
 ! mon_state_reg_alter4
 
 mon_state_reg_alter4:
+    testb  cio_radix
+    jr     nz, mon_state_reg_alter4_hex
     cpb    rl0, #7
     jp     gt, mon_state_reg_alter_not_oct
     call   mon_get_reg_addr
@@ -363,11 +465,22 @@ mon_state_reg_alter4:
     ldb    @r1, rh0
     ldb    mon_state, #STATE_REG_ALTER5
     ret
+mon_state_reg_alter4_hex:
+    call   mon_get_reg_addr
+    inc    r1, #1
+    ldb    rh0, @r1
+    sllb   rh0, #4
+    orb    rh0, rl0
+    ldb    @r1, rh0
+    ldb    mon_state, #STATE_REG_ALTER5
+    ret
 
 !------------------------------------------------------------------------------
 ! mon_state_reg_alter5
 
 mon_state_reg_alter5:
+    testb  cio_radix
+    jr     nz, mon_state_reg_alter5_hex
     cpb    rl0, #7
     jp     gt, mon_state_reg_alter_not_oct
     call   mon_get_reg_addr
@@ -377,6 +490,15 @@ mon_state_reg_alter5:
     orb    rh0, rl0
     ldb    @r1, rh0
     ldb    mon_state, #STATE_REG_ALTER6
+    ret
+mon_state_reg_alter5_hex:
+    call   mon_get_reg_addr
+    inc    r1, #1
+    ldb    rh0, @r1
+    sllb   rh0, #4
+    orb    rh0, rl0
+    ldb    @r1, rh0
+    jp     go_state_reg_display
     ret
 
 !------------------------------------------------------------------------------
