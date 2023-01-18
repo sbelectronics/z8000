@@ -10,6 +10,7 @@
     .global mon_keydown
     .global mon_update
     .global mon_start
+    .global mon_test_reg
 
 	unsegm
 	sect	.text
@@ -51,7 +52,7 @@
 .equ STATE_GROUP_REG, 0x20
 .equ STATE_GROUP_MASK, 0xF0
 
-.equ MON_REG_MAX, 1
+.equ MON_REG_MAX, 17
 
 !------------------------------------------------------------------------------
 ! mon_keydown
@@ -547,10 +548,31 @@ mon_state_reg_display_not_alter:
 !    r1: address of register in frame
 
 mon_get_reg_addr:
+    cpb    mon_reg_index, #0
+    jr     nz, not_sg
+
     lda    r1, mon_regs
     add    r1, mon_reg_index_word
     add    r1, mon_reg_index_word
     ret
+
+    ! to set these up, jump to mon_test_reg in DDT then look for the right
+    ! signature.
+
+not_sg:
+    cpb    mon_reg_index, #1
+    jr     nz, not_pc
+    ld     r1, r15
+    add    r1, #48
+    ret
+
+not_pc:
+    ld     r1, r15
+    add    r1, #2
+    add    r1, mon_reg_index_word
+    add    r1, mon_reg_index_word
+    ret
+
 
 !------------------------------------------------------------------------------
 ! mon_update
@@ -590,7 +612,26 @@ mon_update_reg_display:
     ldb    rl0, mon_reg_index
     call   cio_set_reg_r
     ret
+    call   mon_test_reg
 
+mon_test_reg:
+    ld     r0, #0x3300
+    ld     r1, #0x3301
+    ld     r2, #0x3302
+    ld     r3, #0x3303
+    ld     r4, #0x3304
+    ld     r5, #0x3305
+    ld     r6, #0x3306
+    ld     r7, #0x3307
+    ld     r8, #0x3308
+    ld     r9, #0x3309
+    ld     r10, #0x330A
+    ld     r11, #0x330B
+    ld     r12, #0x330C
+    ld     r13, #0x330D
+haltloop:
+    !halt
+    jr     haltloop
 
 !------------------------------------------------------------------------------
 	sect .data
@@ -603,8 +644,6 @@ mon_seg_h:           ! there really isn't a high byte...
     .byte 0x00
 mon_seg_l:
     .byte 0x01
-mon_pc:
-    .word 0x00
 
 mon_reg_index_word:
     .byte    0x00

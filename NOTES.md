@@ -135,3 +135,11 @@ On making bios calls via bdos
   
 Compiling things and see the assembly output
   zcc -s calltest.c
+
+Trap Handling:
+  page 240 of z80 technical manual
+  saved on stack:
+    PC Offset
+    PC Segment (some confusion as it says segment is saved for z8002 but not z8001)
+    FCW
+    I/T identifier (reason)
