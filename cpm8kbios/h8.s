@@ -262,6 +262,7 @@ cio_nvi:
     bitb  rl0, #7               ! check IP bit
     jr    z, cio_nvi_out        ! it's not our fault
 
+cio_nvi_again:
     inc   cio_count_b1, #1
     jr    nz, cio_nvi_nowrap
     inc   cio_count_b3, #1
@@ -292,6 +293,16 @@ cio_nvi_not_update:
     ldb   rh0, #CIO_PCSA
     ldb   rl0, #0b01100000    ! clear IUS
     call  cio_set
+
+    ! NOTE: OR-priority-encoded should have been an alternative to this, as docs claim IP cannot be
+    ! reset while the pattern is present.
+
+    ! check to see if a pattern was matched after we cleared IP
+    ldb   rh0, #CIO_PCSA
+    call  cio_get
+    andb  rl0, #0b00100010    ! check IP and PMF
+    cpb   rl0, #0b00000010
+    jr    z, cio_nvi_again    ! uh oh, PMF is set but not IP. Go back and look for more interrupts.
 
 cio_nvi_out:
     ret
