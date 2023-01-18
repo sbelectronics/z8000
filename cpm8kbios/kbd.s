@@ -152,11 +152,7 @@ nodetect:
 ! cio_nvi
 !  
 
-cio_nvi:
-    push	@r15, r0
-    push	@r15, r1
-    push	@r15, r2    
-    push	@r15, r3        
+cio_nvi:     
     ldb   rh0, #CIO_CTCS1
     call  cio_get
     bitb  rl0, #7
@@ -186,10 +182,6 @@ cio_nvi_nowrap:
     call  cio_set 
 
 cio_nvi_out:
-    pop   r3, @r15
-    pop   r2, @r15
-    pop   r1, @r15
-    pop   r0, @r15
     ret
 
 !------------------------------------------------------------------------------

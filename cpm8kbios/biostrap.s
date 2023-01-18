@@ -140,13 +140,17 @@ _trap_ret:		! return from trap or interrupt
 	jr	_trap
 
 nvi_trap:
-    push	@r14, r0
+	sub	r15, #28	    ! push registers r0 through r13
+	ldm	@r14, r0, #14
+
 	NONSEG
 	.if ENABLE_KBD == 1
 	call  cio_nvi
 	.endif
 	SEG
-	pop   r0, @r14
+
+	ldm	r0, @r14, #14	! restore registers r0 through r13
+	add	r15, #28
 	iret
 
 nvi_trap_orig:
