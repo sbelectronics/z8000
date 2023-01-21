@@ -10,7 +10,8 @@
     .global mon_keydown
     .global mon_update
     .global mon_start
-    .global mon_test_reg
+    .global mon_test_reg, mon_test_reg_halt_loop
+    .global rtm_loop
 
 	unsegm
 	sect	.text
@@ -26,6 +27,8 @@
 .equ KEY_ALTER, KEY_SLASH
 .equ KEY_REG, KEY_DOT
 .equ KEY_RADIX, 0x03
+.equ KEY_GO, 0x04
+.equ KEY_RTM, 0x10
 
 .equ STATE_IDLE, 0
 .equ STATE_MEM_ADDR1, 0x10
@@ -53,6 +56,8 @@
 .equ STATE_GROUP_MASK, 0xF0
 
 .equ MON_REG_MAX, 17
+
+.equ SAVED_TRAP_FRAME_SIZE, 46
 
 !------------------------------------------------------------------------------
 ! mon_keydown
@@ -100,6 +105,8 @@ mon_keydown:
     ret
 
 mon_start:
+    !ldb     mon_reg_index, #1
+    !jp      go_state_reg_display
     jp     go_state_mem_display
 
 go_state_mem_display:
@@ -127,6 +134,57 @@ go_state_reg_alter:
     ldb    mon_state, #STATE_REG_ALTER1
     ret
 
+
+go_rtm:
+    testb   cio_break
+    ret     nz                              ! we're already in break state
+    ldb     cio_break, #1
+
+    ld      r0, #SAVED_TRAP_FRAME_SIZE/2    ! copy registers from trap_frame
+    ld      r1, trap_frame                  ! ... to saved_trap_frame
+    lda     r2, mon_saved_trap_frame
+    ldir    @r2, @r1, r0
+
+
+    ! trap_frame+38 would be the trap identifier. We don't care.
+
+    ld      r1, trap_frame                  ! start at the beginning of the interrupt stack frame
+    add     r1, #40                         ! now pointing at FCW
+
+    ld      r0, @r1                         ! get the saved FCW
+    res     r0, #15                         ! nonsegmented mode
+    ld      @r1, r0                         ! restore modified FCW to the saved FCW
+
+    inc     r1, #2                          ! now pointing at PCSEG
+    ld      r0, #0x0300                     ! system segment
+    ld      @r1, r0
+
+    inc     r1, #2                          ! now pointing at PCOFFS
+    lda     r0, rtm_loop
+    ld      @r1, r0
+    ret
+
+rtm_loop:
+    jr      rtm_loop
+
+go_go:
+    cpb     cio_break, #1
+    ret     nz               ! we're not in break state
+    clrb    cio_break
+
+    ld      r0, #SAVED_TRAP_FRAME_SIZE/2    ! copy registers from saved_trap_frame
+    ld      r1, trap_frame                  ! ... to trap_frame
+    lda     r2, mon_saved_trap_frame
+    ldir    @r1, @r2, r0
+
+    ret
+
+go_radix:
+    ldb    rl0, cio_radix
+    xorb   rl0, #1
+    ldb    cio_radix, rl0
+    ret
+
 !------------------------------------------------------------------------------
 ! mon_state_idle
 
@@ -136,11 +194,12 @@ mon_state_idle:
     cpb    rl0, #KEY_REG
     jp     z, go_state_reg_display
     cpb    rl0, #KEY_RADIX
-    jr     nz, mon_state_idle_not_radix
-    ldb    rl0, cio_radix
-    xorb    rl0, #1
-    ldb    cio_radix, rl0
+    jp     z, go_radix
 mon_state_idle_not_radix:
+    cpb    rl0, #KEY_RTM
+    jr     z, go_rtm
+    cpb    rl0, #KEY_GO
+    jr     z, go_go
     ret
 
 !------------------------------------------------------------------------------
@@ -556,19 +615,20 @@ mon_get_reg_addr:
     add    r1, mon_reg_index_word
     ret
 
-    ! to set these up, jump to mon_test_reg in DDT then look for the right
+    ! to verify these, jump to mon_test_reg in DDT then look for the right
     ! signature.
 
 not_sg:
     cpb    mon_reg_index, #1
     jr     nz, not_pc
-    ld     r1, r15
-    add    r1, #48
+
+    ld     r1, trap_frame
+    add    r1, #44              ! 30 bytes for trap_frame, plus another 14
     ret
 
 not_pc:
-    ld     r1, r15
-    add    r1, #2
+    ld     r1, trap_frame
+    sub    r1, #4
     add    r1, mon_reg_index_word
     add    r1, mon_reg_index_word
     ret
@@ -629,9 +689,9 @@ mon_test_reg:
     ld     r11, #0x330B
     ld     r12, #0x330C
     ld     r13, #0x330D
-haltloop:
-    !halt
-    jr     haltloop
+mon_test_reg_halt_loop:
+    !halt                 ! this doesn't actually work -- the halt causes a bunch of gibberish out the serial port
+    jr     mon_test_reg_halt_loop
 
 !------------------------------------------------------------------------------
 	sect .data
@@ -659,6 +719,10 @@ mon_addr_hi:
     .byte 0
 mon_addr_lo:
     .byte 0
+
+    .even
+mon_saved_trap_frame:
+    .space SAVED_TRAP_FRAME_SIZE
 
 
 !------------------------------------------------------------------------------

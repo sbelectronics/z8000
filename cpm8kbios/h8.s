@@ -19,6 +19,7 @@
     .global cio_set_reg_r
     .global cio_dots
     .global cio_radix
+    .global cio_break
 
 	unsegm
 	sect	.text
@@ -121,6 +122,20 @@
 .equ STATE_MEM_ADDR6, 6
 .equ STATE_MEM_DISPLAY, 7
 
+!   rh0 = register (input)
+!   rl0 = value (output)
+.macro CIO_GET
+    outb   #CIO_CMD, rh0
+    inb    rl0, #CIO_CMD
+    .endm
+
+!   rh0 = register (input)
+!   rl0 = value (input)
+.macro CIO_SET
+    outb   #CIO_CMD, rh0
+    outb   #CIO_CMD, rl0
+    .endm
+
 !------------------------------------------------------------------------------
 ! cio_init
 
@@ -135,8 +150,6 @@ cio_init:
     jr      z, cio_init_detected
     ldb     cio_enable, #0
     ldb     cio_kb_enqueue, #0xFF
-    ldb     cio_kb_caps, #0
-    ldb     cio_kb_code, #0
     lda     r4, nociomsg
     call    puts
     ret
@@ -228,24 +241,24 @@ cio_detect_and_reset:
 
     ldb     rh0, #CIO_MICR
     ldb     rl0, #1            ! reset CIO
-    call    cio_set
+    CIO_SET
 
     ldb     rl0, #0b00100010   ! NV, RJA
     outb    #CIO_CMD, rl0      ! we're still pointing at reg0
 
     ldb     rh0, #CIO_PPB
     ldb     rl0, #0xA5
-    call    cio_set
-    call    cio_get
+    CIO_SET
+    CIO_GET
     cpb     rl0, #0xA5
     jr      nz, nodetect
     ldb     rl0, #0x5A
-    call    cio_set
-    call    cio_get
+    CIO_SET
+    CIO_GET
     cpb     rl0, #0x5A
     jr      nz, nodetect
     ldb     rl0, #0x00
-    call    cio_set
+    CIO_SET
     clr     r0
     ret
 nodetect:
@@ -258,19 +271,15 @@ nodetect:
 
 cio_nvi: 
     ldb   rh0, #CIO_PCSA
-    call  cio_get
+    CIO_GET
     bitb  rl0, #7               ! check IP bit
-    jr    z, cio_nvi_out        ! it's not our fault
+    ret   z                     ! it's not our fault
 
-cio_nvi_again:
-    inc   cio_count_b1, #1
-    jr    nz, cio_nvi_nowrap
-    inc   cio_count_b3, #1
-cio_nvi_nowrap:
-    
-    ! every 32 refreshes, check to see if we want to calculate a display update
-    ldb   rl0, cio_count_b0
-    andb  rl0, #0x1F
+    ldl   rr0, cio_count        ! increment the cycle counter
+    addl  rr0, #1
+    ldl   cio_count, rr0
+
+    andb  rl1, #0x1F
     jr    nz, cio_nvi_not_update
     call  mon_update
 
@@ -282,24 +291,23 @@ cio_nvi_nowrap:
 not_dot9:
 cio_nvi_not_update:
 
+cio_nvi_again:
     call  cio_multiplex_digit
 
     call  cio_scankey
 
     ldb   rh0, #CIO_PCSA
     ldb   rl0, #0b10100000    ! clear IP
-    call  cio_set
-
-    ldb   rh0, #CIO_PCSA
+    CIO_SET
     ldb   rl0, #0b01100000    ! clear IUS
-    call  cio_set
+    CIO_SET
 
     ! NOTE: OR-priority-encoded should have been an alternative to this, as docs claim IP cannot be
     ! reset while the pattern is present.
 
     ! check to see if a pattern was matched after we cleared IP
     ldb   rh0, #CIO_PCSA
-    call  cio_get
+    CIO_GET
     andb  rl0, #0b00100010    ! check IP and PMF
     cpb   rl0, #0b00000010
     jr    z, cio_nvi_again    ! uh oh, PMF is set but not IP. Go back and look for more interrupts.
@@ -314,7 +322,12 @@ cio_multiplex_digit:
 
     ldb   rl0, digits(r1)
     ldb   rh0, rl1
-    orb   rh0, #0xE0           ! set speaker, refresh-enable, and monitor bits
+    orb   rh0, #0b11000000     ! set speaker and refresh-enable
+
+    testb cio_break            ! check to see if monitor is in break state
+    jr    z, cio_multiplex_digit_no_break
+    orb   rh0, #0b00100000     ! turn on break LED
+cio_multiplex_digit_no_break:
 
     cpb   cio_dots, #0
     jr    nz, not_dots0
@@ -355,8 +368,8 @@ cio_scankey:
     ret                              ! not long enough debounce -- keep waiting
 
 key_same_enough:
-    lda    r1, scancodes+15
-    ld     r2, #16                   ! check 16 scancodes
+    lda    r1, scancodes+16
+    ld     r2, #17                   ! check 17 scancodes
 next_scancode:
     cpb    rl0, @r1
     jr     nz, not_this_scancode
@@ -606,30 +619,6 @@ cio_set_octal_addr:
     exb    rh0, rl0
     ret
 
-!------------------------------------------------------------------------------
-! cio_set
-!
-! input:
-!   rh0 = register
-!   rl0 = value
-
-cio_set:
-    outb   #CIO_CMD, rh0
-    outb   #CIO_CMD, rl0
-    ret
-
-!------------------------------------------------------------------------------
-! cio_get
-!
-! input:
-!   rh0 = register
-! output:
-!   rl0 = value    
-
-cio_get:
-    outb   #CIO_CMD, rh0
-    inb    rl0, #CIO_CMD
-    ret
 
 !------------------------------------------------------------------------------
 ! cio_set_divisor
@@ -642,10 +631,10 @@ cio_get:
 cio_set_divisor:
     ldb    rh0, #CIO_CTTC1M
     ldb    rl0, rh5
-    call   cio_set
+    CIO_SET
     ldb    rh0, #CIO_CTTC1L
     ldb    rl0, rl5
-    call   cio_set
+    CIO_SET
     ld     cio_divisor, r5
     ret    
 
@@ -660,20 +649,7 @@ cio_enable:
 cio_kb_enqueue:
     .byte    0xFF
 
-cio_kb_state:        ! note: these start with row7 and count backwards
-    .word    0xFFFF
-    .word    0xFFFF
-    .word    0xFFFF
-    .word    0xFFFF
-    .word    0xFFFF
-
-cio_kb_caps:
-    .byte    0
-
-cio_kb_code:
-    .byte    0
-
-    .even
+    .balign  4
 cio_count:
 cio_count_b3:
     .byte    0
@@ -706,6 +682,9 @@ digits_r:
     .byte 0x40
     .byte 0x80
     .byte 0x1F
+
+cio_break:
+    .byte 0x00
 
 cio_radix:
     .byte 0x00
@@ -808,22 +787,23 @@ reg_7seg_r15:
 
 
 scancodes:
-    .byte 0b11111110
-    .byte 0b11111100
-    .byte 0b11111010
-    .byte 0b11111000
-    .byte 0b11110110
-    .byte 0b11110100
-    .byte 0b11110010
-    .byte 0b11110000
-    .byte 0b11101111
-    .byte 0b11001111
-    .byte 0b10101111
-    .byte 0b10001111
-    .byte 0b01101111
-    .byte 0b01001111
-    .byte 0b00101111
-    .byte 0b00001111
+    .byte 0b11111110 ! 0
+    .byte 0b11111100 ! 1
+    .byte 0b11111010 ! 2
+    .byte 0b11111000 ! 3
+    .byte 0b11110110 ! 4
+    .byte 0b11110100 ! 5
+    .byte 0b11110010 ! 6
+    .byte 0b11110000 ! 7
+    .byte 0b11101111 ! 8
+    .byte 0b11001111 ! 9
+    .byte 0b10101111 ! A
+    .byte 0b10001111 ! B
+    .byte 0b01101111 ! C
+    .byte 0b01001111 ! D
+    .byte 0b00101111 ! E
+    .byte 0b00001111 ! F
+    .byte 0b00101110 ! 0 + E
 
 ciomsg:
     .asciz  "CIO detected. intializing\r\n"

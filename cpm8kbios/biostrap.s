@@ -43,6 +43,7 @@
 
 	.global	trapinit, _trapvec, _trap, fp_epu
 	.global	xfersc, psa
+	.global trap_frame
     
 ! ****************************************************
 ! *
@@ -140,17 +141,18 @@ _trap_ret:		! return from trap or interrupt
 	jr	_trap
 
 nvi_trap:
-	sub	r15, #28	    ! push registers r0 through r13
-	ldm	@r14, r0, #14
+	sub	r15, #30             ! 30 bytes is enough for up to 15 registers
+	ldm	@r14, r0, #14        ! push registers r0 through r13
 
 	NONSEG
+	ld    trap_frame, r15    ! save address of frame
 	.if ENABLE_KBD == 1
 	call  cio_nvi
 	.endif
 	SEG
 
-	ldm	r0, @r14, #14	! restore registers r0 through r13
-	add	r15, #28
+	ldm	r0, @r14, #14	     ! restore registers r0 through r13
+	add	r15, #30
 	iret
 
 nvi_trap_orig:
@@ -313,36 +315,15 @@ nvi:
 		SEG
 	.endif
         ret
-/*
-dbgbc:  
-	! Segmented mode
-	.word	0x5d00	! ldl 0x03a000, rr0
-	.word	0x8300
-	.word	0xa000
-	.word	0x5d02	! ldl 0x03a004, rr2
-	.word	0x8300
-	.word	0xa004
-	.word	0x5d04	! ldl 0x03a008, rr4
-	.word	0x8300
-	.word	0xa008
-	.word	0x5d06	! ldl 0x03a00c, rr6
-	.word	0x8300
-	.word	0xa00c
-	.word	0x5d08	! ldl 0x03a010, rr8
-	.word	0x8300
-	.word	0xa010
-	.word	0x5d0a	! ldl 0x03a014, rr10
-	.word	0x8300
-	.word	0xa014
-	.word	0x5d0c	! ldl 0x03a018, rr12
-	.word	0x8300
-	.word	0xa018
-	.word	0x5d0e	! ldl 0x03a01c, rr14
-	.word	0x8300
-	.word	0xa01c
-	mset
-	halt
-*/
+!------------------------------------------------------------------------------
+	sect .data
+
+    .even
+	! trap_frame is where the nvi stack frame is stored. Useful for H8 monitor
+	! handler so it can see the registers.
+trap_frame:       
+    .word 0x00
+
 
 !-------------------------------------------------------------------------------
 	sect .psa
