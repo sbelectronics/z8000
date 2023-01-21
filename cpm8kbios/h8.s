@@ -7,7 +7,9 @@
 
 	.include "biosdef.s"
 
-    .global cio_init, cio_nvi
+    .global cio_init
+    .global cio_reset
+    .global cio_nvi
     .global cio_kb_enqueue
     .global cio_count
     .global cio_enable
@@ -20,6 +22,10 @@
     .global cio_dots
     .global cio_radix
     .global cio_break
+    .global cio_digsel_or
+    .global digits
+    .global cio_dotpos
+    .global cio_nvi_min
 
 	unsegm
 	sect	.text
@@ -136,6 +142,12 @@
     outb   #CIO_CMD, rl0
     .endm
 
+! performance notes:
+!  saving all 14 regs instead of 4 regs - 2.7% increase (due to bug)
+!  keyboard loop  - 0.6% increase
+!  updates every 32 refreshes - 0.2& increase
+!  multiplex-display - 0.4% increase
+
 !------------------------------------------------------------------------------
 ! cio_init
 
@@ -174,6 +186,18 @@ cio_init_detected:
     ret
 
 !------------------------------------------------------------------------------
+! cio_reset
+
+cio_reset:
+    ldb    rh0, #0           ! CIO register 0
+    CIO_GET                  ! read will force us into state 0
+    ldb    rl0, #1           ! write bit 1 in register 0 will cause reset
+    CIO_SET
+    ldb    rl0, #0           ! leave reset state
+    CIO_SET
+    ret
+
+!------------------------------------------------------------------------------
 ! cio_testpattern_2
 !
 
@@ -186,48 +210,6 @@ cio_testpattern_2:
 
     ldb     rl0, #0x88       ! 210
     call    cio_set_octal_r
-    ret
-
-!------------------------------------------------------------------------------
-! cio_testpattern_1
-!
-
-cio_testpattern_1:
-    ldb     rh0, #0
-    ldb     rl0, #8
-    call    cio_set_digit
-
-    ldb     rh0, #1
-    ldb     rl0, #7
-    call    cio_set_digit
-
-    ldb     rh0, #2
-    ldb     rl0, #6
-    call    cio_set_digit
-
-    ldb     rh0, #3
-    ldb     rl0, #5
-    call    cio_set_digit
-
-    ldb     rh0, #4
-    ldb     rl0, #4
-    call    cio_set_digit
-
-    ldb     rh0, #5
-    ldb     rl0, #3
-    call    cio_set_digit
-
-    ldb     rh0, #6
-    ldb     rl0, #2
-    call    cio_set_digit
-
-    ldb     rh0, #7
-    ldb     rl0, #1
-    call    cio_set_digit
-
-    ldb     rh0, #8
-    ldb     rl0, #0
-    call    cio_set_digit
     ret
 
 !------------------------------------------------------------------------------
@@ -269,30 +251,38 @@ nodetect:
 ! cio_nvi
 !  
 
-cio_nvi: 
+cio_nvi:
     ldb   rh0, #CIO_PCSA
     CIO_GET
-    bitb  rl0, #7               ! check IP bit
+    bitb  rl0, #5               ! check IUS bit
     ret   z                     ! it's not our fault
 
     ldl   rr0, cio_count        ! increment the cycle counter
     addl  rr0, #1
     ldl   cio_count, rr0
 
-    andb  rl1, #0x1F
-    jr    nz, cio_nvi_not_update
+    andb  rl1, #0x1F            ! every 32 cycle counts, do an update
+    jr    nz, cio_nvi_not_upd
     call  mon_update
-
-    ! also every 32 refreshes, update the dotpos
-    incb  cio_dotpos, #1
-    cpb   cio_dotpos, #9
-    jr    nz, not_dot9
-    ldb   cio_dotpos, #0
-not_dot9:
-cio_nvi_not_update:
+cio_nvi_not_upd:
 
 cio_nvi_again:
-    call  cio_multiplex_digit
+    !--------------------------------------------------  multiplex-digit
+    ld    r1, digindex         ! r1 = digit index (0-8)
+
+    ldb   rl0, digits0(r1)
+    ldb   rh0, rl1
+    orb   rh0, cio_digsel_or
+ 
+    outb  #DIGSEL, rh0         ! output digit index
+    outb  #DIGVAL, rl0         ! output digit value
+
+    dec   r1, #1
+    jr    nz, digindex_nowrap
+    ld    r1, #9
+digindex_nowrap:
+    ld    digindex, r1
+    !-------------------------------------------------- end multiplex-digit
 
     call  cio_scankey
 
@@ -315,47 +305,22 @@ cio_nvi_again:
 cio_nvi_out:
     ret
 
-!------------------------------------------------------------------------------
 
-cio_multiplex_digit:
-    ld    r1, digindex         ! r1 = digit index (0-8)
+cio_nvi_min:
+    ldb   rh0, #CIO_PCSA
+    CIO_GET
+    bitb  rl0, #5               ! check IUS bit
+    ret   z                     ! it's not our fault
 
-    ldb   rl0, digits(r1)
-    ldb   rh0, rl1
-    orb   rh0, #0b11000000     ! set speaker and refresh-enable
-
-    testb cio_break            ! check to see if monitor is in break state
-    jr    z, cio_multiplex_digit_no_break
-    orb   rh0, #0b00100000     ! turn on break LED
-cio_multiplex_digit_no_break:
-
-    cpb   cio_dots, #0
-    jr    nz, not_dots0
-    orb   rl0, #0x80           ! dot mode 0 = turn off all dots
-    jr    done_dots
-not_dots0:
-    cpb   cio_dots, #1         ! dot mode 1 = turn on all dots
-    jr    z, done_dots
-    cpb   rl1, cio_dotpos      ! dot mode 2 = moving dots
-    jr    z, done_dots
-    orb   rl0, #0x80
-done_dots:
- 
-    incb  rh0, #1              ! first digit on display board is at 1, not 0
-    outb  #DIGSEL, rh0         ! output digit index
-    outb  #DIGVAL, rl0         ! output digit value
-
-    inc   r1, #1
-    cp    r1, #9
-    jr    lt, cio_multiplex_digit_nowrap
-    ld    r1, #0
-cio_multiplex_digit_nowrap:
-    ld    digindex, r1
+    ldb   rh0, #CIO_PCSA
+    ldb   rl0, #0b10100000    ! clear IP
+    CIO_SET
+    ldb   rl0, #0b01100000    ! clear IUS
+    CIO_SET
     ret
 
 !------------------------------------------------------------------------------
 ! cio_scankey
-!
 
 cio_scankey:
     inb    rl0, #DIGSEL
@@ -369,16 +334,16 @@ cio_scankey:
 
 key_same_enough:
     lda    r1, scancodes+16
-    ld     r2, #17                   ! check 17 scancodes
+    ldb    rh0, #17                  ! check 17 scancodes
 next_scancode:
     cpb    rl0, @r1
     jr     nz, not_this_scancode
-    ldb    rl0, rl2                  ! put scancode in rl2
+    ldb    rl0, rh0                  ! put scancode in rl2
     decb   rl0, #1
     jp     mon_keydown
 not_this_scancode:
     dec    r1, #1
-    djnz   r2, next_scancode
+    dbjnz  rh0, next_scancode
     ret                              ! no match
 
 cio_scankey_different:
@@ -457,7 +422,7 @@ cio_set_hex_l:
     ldb     rh0, digit_7seg(r1)
     ldb     digits_l+1, rh0
 
-    ldb     rh0, #0b01111111
+    ldb     rh0, #0b11111111
     ldb     digits_l+2, rh0
 
 cio_set_octal_l_ret:
@@ -513,7 +478,7 @@ cio_set_hex_m:
     ldb     rh0, digit_7seg(r1)
     ldb     digits_m+1, rh0
 
-    ldb     rh0, #0b01111111
+    ldb     rh0, #0b11111111
     ldb     digits_m+2, rh0
 
 cio_set_octal_m_ret:
@@ -569,7 +534,7 @@ cio_set_hex_r:
     ldb     rh0, digit_7seg(r1)
     ldb     digits_r+1, rh0
 
-    ldb     rh0, #0b01111111
+    ldb     rh0, #0b11111111
     ldb     digits_r+2, rh0
 
 cio_set_octal_r_ret:
@@ -668,7 +633,9 @@ cio_divisor:
 
     .even
 digindex:
-    .word 0
+    .word 1
+digits0:
+    .byte 0x00                    ! dummy placeholder since first digit starts at 1
 digits:                           ! some non-random gibberish pattern for now
 digits_l:
     .byte 0x1
@@ -693,7 +660,10 @@ cio_dots:
     .byte 0x00
 
 cio_dotpos:
-    .byte 0x00
+    .byte 0x01
+
+cio_digsel_or:
+    .byte 0b11000000   ! refresh and speaker bits
 
 key_last:
     .byte 0xFF
@@ -718,16 +688,16 @@ ciocmds:
 ciocmde:
 
 digit_7seg:
-	.byte	0b00000001	! 0
-	.byte	0b01110011	! 1
-	.byte	0b01001000	! 2
-	.byte	0b01100000	! 3
-	.byte	0b00110010	! 4
-	.byte	0b00100100	! 5
-	.byte	0b00000100	! 6
-	.byte	0b01110001	! 7
-	.byte	0b00000000	! 8
-	.byte	0b00100000	! 9
+	.byte	0b10000001	! 0
+	.byte	0b11110011	! 1
+	.byte	0b11001000	! 2
+	.byte	0b11100000	! 3
+	.byte	0b10110010	! 4
+	.byte	0b10100100	! 5
+	.byte	0b10000100	! 6
+	.byte	0b11110001	! 7
+	.byte	0b10000000	! 8
+	.byte	0b10100000	! 9
     .byte   0b10010000  ! A
     .byte   0b10000110  ! B
     .byte   0b10001101  ! C
@@ -749,41 +719,41 @@ reg_7seg_hl:
 
 reg_7seg:
 reg_7seg_sg:
-    .byte  0b01111111,  0b10100100, 0b10000101, 0b00000000
+    .byte  0b11111111,  0b10100100, 0b10000101, 0b00000000
 reg_7seg_pc:
-    .byte  0b01111111,  0b10011000, 0b11001110, 0b00000000
+    .byte  0b11111111,  0b10011000, 0b11001110, 0b00000000
 reg_7seg_r0:
-    .byte  0b01111111,  0b11011110, 0b00000001, 0b00000000
+    .byte  0b11111111,  0b11011110, 0b10000001, 0b00000000
 reg_7seg_r1:
-    .byte  0b01111111,  0b11011110, 0b01110011, 0b00000000
+    .byte  0b11111111,  0b11011110, 0b11110011, 0b00000000
 reg_7seg_r2:
-    .byte  0b01111111,  0b11011110, 0b01001000, 0b00000000
+    .byte  0b11111111,  0b11011110, 0b11001000, 0b00000000
 reg_7seg_r3:
-    .byte  0b01111111,  0b11011110, 0b01100000, 0b00000000
+    .byte  0b11111111,  0b11011110, 0b11100000, 0b00000000
 reg_7seg_r4:
-    .byte  0b01111111,  0b11011110, 0b00110010, 0b00000000
+    .byte  0b11111111,  0b11011110, 0b10110010, 0b00000000
 reg_7seg_r5:
-    .byte  0b01111111,  0b11011110, 0b00100100, 0b00000000
+    .byte  0b11111111,  0b11011110, 0b10100100, 0b00000000
 reg_7seg_r6:
-    .byte  0b01111111,  0b11011110, 0b00000100, 0b00000000
+    .byte  0b11111111,  0b11011110, 0b10000100, 0b00000000
 reg_7seg_r7:
-    .byte  0b01111111,  0b11011110, 0b01110001, 0b00000000
+    .byte  0b11111111,  0b11011110, 0b11110001, 0b00000000
 reg_7seg_r8:
-    .byte  0b01111111,  0b11011110, 0b00000000, 0b00000000
+    .byte  0b11111111,  0b11011110, 0b10000000, 0b00000000
 reg_7seg_r9:
-    .byte  0b01111111,  0b11011110, 0b00100000, 0b00000000
+    .byte  0b11111111,  0b11011110, 0b10100000, 0b00000000
 reg_7seg_r10:
-    .byte  0b11011110,  0b01110011, 0b00000001, 0b00000000
+    .byte  0b11011110,  0b11110011, 0b10000001, 0b00000000
 reg_7seg_r11:
-    .byte  0b11011110,  0b01110011, 0b01110011, 0b00000000
+    .byte  0b11011110,  0b11110011, 0b11110011, 0b00000000
 reg_7seg_r12:
-    .byte  0b11011110,  0b01110011, 0b01001000, 0b00000000
+    .byte  0b11011110,  0b11110011, 0b11001000, 0b00000000
 reg_7seg_r13:
-    .byte  0b11011110,  0b01110011, 0b01100000, 0b00000000
+    .byte  0b11011110,  0b11110011, 0b11100000, 0b00000000
 reg_7seg_r14:
-    .byte  0b11011110,  0b01110011, 0b00110010, 0b00000000
+    .byte  0b11011110,  0b11110011, 0b10110010, 0b00000000
 reg_7seg_r15:
-    .byte  0b11011110,  0b01110011, 0b00100100, 0b00000000
+    .byte  0b11011110,  0b11110011, 0b10100100, 0b00000000
 
 
 scancodes:
@@ -810,4 +780,5 @@ ciomsg:
 
 nociomsg:
     .asciz  "CIO not detected. not intializing\r\n"
+
 

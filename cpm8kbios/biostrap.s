@@ -141,8 +141,9 @@ _trap_ret:		! return from trap or interrupt
 	jr	_trap
 
 nvi_trap:
-	sub	r15, #30             ! 30 bytes is enough for up to 15 registers
-	ldm	@r14, r0, #14        ! push registers r0 through r13
+	sub	  r15, #30             ! 30 bytes is enough for up to 15 registers
+	ldm	  @r14, r0, #14        ! push registers r0 through r13
+	sub   r15, #2              ! just to be safe, leave SP pointing to an empty space
 
 	NONSEG
 	ld    trap_frame, r15    ! save address of frame
@@ -151,13 +152,10 @@ nvi_trap:
 	.endif
 	SEG
 
-	ldm	r0, @r14, #14	     ! restore registers r0 through r13
-	add	r15, #30
+    add   r15, #2
+	ldm	  r0, @r14, #14	     ! restore registers r0 through r13
+	add	  r15, #30
 	iret
-
-nvi_trap_orig:
-	push	@r14, #NVITRAP
-	jr	_trap
 
 ! ****************************************************
 ! *
@@ -293,6 +291,8 @@ clrtraps:
 	add	r5, #ps			! Non-Maskable Int.
 	ldar	r2, nmi_trap
 	ldm	@r4, r0, #4
+
+	ldl	rr0, #0x0000C000 ! FCW   - interrupts disabled for nvi handler
 
 	add	r5, #ps			! Non-Vectored Int.
 	ldar	r2, nvi_trap

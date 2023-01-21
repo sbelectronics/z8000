@@ -92,7 +92,13 @@ kludge:
 	ldl	_sysstk, rr14
 	
 	push	@r15, #_wboot	! set up system stack so that a return will warm boot
-	
+ 
+    ! Reset the CIO, if there is one, so it stops causing interrupts if we're warm-booted.
+	! This must be done before we enable interrupts or we may get spurious interrupts. The
+	! cio_reset function must do no harm if a CIO is not installed.
+
+    call    cio_reset
+
 	call	trapinit	! set up traps, then enable interrupts
 	ei	vi, nvi
 

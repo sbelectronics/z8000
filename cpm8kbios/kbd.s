@@ -7,7 +7,9 @@
 
 	.include "biosdef.s"
 
-    .global cio_init, cio_nvi
+    .global cio_init
+    .global cio_nvi
+    .global cio_reset
     .global cio_kb_enqueue
     .global cio_count
     .global cio_enable
@@ -88,6 +90,20 @@
 
 .equ CIO_CV, 0x1F
 
+!   rh0 = register (input)
+!   rl0 = value (output)
+.macro CIO_GET
+    outb   #CIO_CMD, rh0
+    inb    rl0, #CIO_CMD
+    .endm
+
+!   rh0 = register (input)
+!   rl0 = value (input)
+.macro CIO_SET
+    outb   #CIO_CMD, rh0
+    outb   #CIO_CMD, rl0
+    .endm
+
     
 
 !------------------------------------------------------------------------------
@@ -104,6 +120,7 @@ cio_init:
     call    puts
     ret
 cio_init_detected:
+    di      vi, nvi                     ! let's not get interrupted while we're setting up the CIO
     lda     r4, ciomsg
     call    puts
     ld      r2, #(ciocmde - ciocmds)    ! initialize Z8536
@@ -111,6 +128,19 @@ cio_init_detected:
     ld      r4, #ciocmds
     otirb   @r3, @r4, r2
     ldb     cio_enable, #1
+    ei      vi, nvi
+    ret
+
+!------------------------------------------------------------------------------
+! cio_reset
+
+cio_reset:
+    ldb    rh0, #0           ! CIO register 0
+    CIO_GET                  ! read will force us into state 0
+    ldb    rl0, #1           ! write bit 1 in register 0 will cause reset
+    CIO_SET
+    ldb    rl0, #0           ! leave reset state
+    CIO_SET
     ret
 
 !------------------------------------------------------------------------------
@@ -155,22 +185,13 @@ nodetect:
 cio_nvi:     
     ldb   rh0, #CIO_CTCS1
     call  cio_get
-    bitb  rl0, #7
-    jr    z, cio_nvi_out        ! it's not our fault
+    bitb  rl0, #5
+    ret   z       ! it's not our fault
 
     inc   cio_count_b1, #1
     jr    nz, cio_nvi_nowrap
     inc   cio_count_b3, #1
 cio_nvi_nowrap:
-    !ldb   rl0, cio_count_b3
-    !outb  #0x50, rl0
-    !ldb   rl0, cio_count_b2
-    !outb  #0x51, rl0
-    !ldb   rl0, cio_count_b1
-    !outb  #0x52, rl0
-    !ldb   rl0, cio_count_b0
-    !outb  #0x53, rl0
-
     call  cio_scan
 
     ldb   rh0, #CIO_CTCS1
@@ -180,8 +201,6 @@ cio_nvi_nowrap:
     ldb   rh0, #CIO_CTCS1
     ldb   rl0, #0b01100100    ! clear IUS
     call  cio_set 
-
-cio_nvi_out:
     ret
 
 !------------------------------------------------------------------------------

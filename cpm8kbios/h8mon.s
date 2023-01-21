@@ -105,8 +105,7 @@ mon_keydown:
     ret
 
 mon_start:
-    !ldb     mon_reg_index, #1
-    !jp      go_state_reg_display
+    !jp     go_state_mem_alter
     jp     go_state_mem_display
 
 go_state_mem_display:
@@ -139,6 +138,7 @@ go_rtm:
     testb   cio_break
     ret     nz                              ! we're already in break state
     ldb     cio_break, #1
+    setb    cio_digsel_or, #13              ! turn on the monitor LED
 
     ld      r0, #SAVED_TRAP_FRAME_SIZE/2    ! copy registers from trap_frame
     ld      r1, trap_frame                  ! ... to saved_trap_frame
@@ -149,7 +149,7 @@ go_rtm:
     ! trap_frame+38 would be the trap identifier. We don't care.
 
     ld      r1, trap_frame                  ! start at the beginning of the interrupt stack frame
-    add     r1, #40                         ! now pointing at FCW
+    add     r1, #34                         ! now pointing at FCW
 
     ld      r0, @r1                         ! get the saved FCW
     res     r0, #15                         ! nonsegmented mode
@@ -171,6 +171,7 @@ go_go:
     cpb     cio_break, #1
     ret     nz               ! we're not in break state
     clrb    cio_break
+    resb    cio_digsel_or, #13              ! turn off the monitor LED
 
     ld      r0, #SAVED_TRAP_FRAME_SIZE/2    ! copy registers from saved_trap_frame
     ld      r1, trap_frame                  ! ... to trap_frame
@@ -623,12 +624,12 @@ not_sg:
     jr     nz, not_pc
 
     ld     r1, trap_frame
-    add    r1, #44              ! 30 bytes for trap_frame, plus another 14
+    add    r1, #38              ! 32 bytes for trap_frame, 6
     ret
 
 not_pc:
     ld     r1, trap_frame
-    sub    r1, #4
+    sub    r1, #2               ! index is + 4, but the bottom 2 bytes of trap_frame are empty slot
     add    r1, mon_reg_index_word
     add    r1, mon_reg_index_word
     ret
@@ -644,7 +645,7 @@ mon_update:
     jp     z, mon_update_mem_display
     cpb    rl0, #STATE_GROUP_REG
     jp     z, mon_update_reg_display
-    ret
+    jp     mon_update_dots
 
 mon_update_mem_display:
     ! show the memory address
@@ -660,7 +661,7 @@ mon_update_mem_display:
 	NONSEG
     ldb    rl0, rl1
     call   cio_set_octal_r
-    ret
+    jp     mon_update_dots
 
 mon_update_reg_display:
     ! show register contents
@@ -671,8 +672,37 @@ mon_update_reg_display:
     ! show register name
     ldb    rl0, mon_reg_index
     call   cio_set_reg_r
+    jp     mon_update_dots
+
+mon_update_dots:
+    lda    r1, digits
+    ldb    rh0, #9
+    ldb    rl0, cio_dots
+    testb  rl0
+    ret    z                      ! no dots to light
+    cpb    rl0, #1
+    jr     nz, mon_update_dots_check2 
+mon_update_dots_1:
+    resb   @r1, #7
+    inc    r1, #1
+    dbjnz  rh0, mon_update_dots_1
     ret
-    call   mon_test_reg
+mon_update_dots_check2:
+    ldb   rl0, cio_dotpos
+    decb  rl0, #1
+    jr    nz, mon_dotpos_nowrap
+    ldb   rl0, #9
+mon_dotpos_nowrap:
+    ldb   cio_dotpos, rl0
+mon_update_dots_2:
+    cpb    rh0, rl0
+    jr     z, mon_update_dots_at_pos
+    inc    r1, #1
+    dbjnz  rh0, mon_update_dots_2
+    ret
+mon_update_dots_at_pos:
+    resb   @r1, #7
+    ret
 
 mon_test_reg:
     ld     r0, #0x3300
@@ -720,12 +750,12 @@ mon_addr_hi:
 mon_addr_lo:
     .byte 0
 
+!------------------------------------------------------------------------------
+    sect .bss
+
     .even
 mon_saved_trap_frame:
     .space SAVED_TRAP_FRAME_SIZE
 
-
-!------------------------------------------------------------------------------
-    sect .rdata
 
 
