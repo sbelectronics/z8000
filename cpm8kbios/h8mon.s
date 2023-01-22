@@ -55,7 +55,7 @@
 .equ STATE_GROUP_REG, 0x20
 .equ STATE_GROUP_MASK, 0xF0
 
-.equ MON_REG_MAX, 17
+.equ MON_REG_MAX, 19
 
 .equ SAVED_TRAP_FRAME_SIZE, 46
 
@@ -622,14 +622,27 @@ mon_get_reg_addr:
 not_sg:
     cpb    mon_reg_index, #1
     jr     nz, not_pc
-
     ld     r1, trap_frame
     add    r1, #38              ! 32 bytes for trap_frame, 6
     ret
 
 not_pc:
+    cpb    mon_reg_index, #2
+    jr     nz, not_ps
     ld     r1, trap_frame
-    sub    r1, #2               ! index is + 4, but the bottom 2 bytes of trap_frame are empty slot
+    add    r1, #36              ! 32 bytes for trap_frame, 6
+    ret
+
+not_ps:
+    cpb    mon_reg_index, #3
+    jr     nz, not_fcw
+    ld     r1, trap_frame
+    add    r1, #34              ! 32 bytes for trap_frame, 6
+    ret
+
+not_fcw:
+    ld     r1, trap_frame
+    sub    r1, #6               ! index is + 8, but the bottom 2 bytes of trap_frame are empty slot
     add    r1, mon_reg_index_word
     add    r1, mon_reg_index_word
     ret
@@ -728,7 +741,7 @@ mon_test_reg_halt_loop:
 
     .even
 
-mon_regs:            ! this is where we will put the register frame
+mon_regs:            ! place to hold pseudo-registers
 mon_seg:
 mon_seg_h:           ! there really isn't a high byte...
     .byte 0x00

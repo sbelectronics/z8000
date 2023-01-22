@@ -158,5 +158,5 @@ _wboot:
 !------------------------------------------------------------------------------
 	sect	.rodata
 bootmsg:
-	.asciz	"\r\nCP/M-8000 BIOS ver.0.11.smbaker1\r\n" 
+	.asciz	"\r\nCP/M-8000 BIOS ver.0.11.smbaker-2.0\r\n" 
 

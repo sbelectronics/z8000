@@ -8,8 +8,7 @@
 	.include "biosdef.s"
 
     .global h8_display_init
-    .global h8_multiplex_digit
-    .global h8_scankey
+    .global h8_display_hook
     .global h8_set_octal_addr
     .global h8_set_octal_r
     .global h8_set_reg_r
@@ -19,6 +18,7 @@
     .global h8_digsel_or
     .global h8_digits
     .global h8_dotpos
+    .global h8_count
 
 	unsegm
 	sect	.text
@@ -64,6 +64,23 @@ h8_testpattern_2:
     ldb     rl0, #0x88       ! 210
     call    h8_set_octal_r
     ret
+
+!------------------------------------------------------------------------------
+! h8_display_hook
+! 
+
+h8_display_hook:
+    ldl   rr0, h8_count        ! increment the cycle counter
+    addl  rr0, #1
+    ldl   h8_count, rr0
+
+    andb  rl1, #0x1F            ! every 32 cycle counts, do an update
+    jr    nz, h8_not_upd
+    call  mon_update
+h8_not_upd:
+    call  h8_multiplex_digit
+
+    jp    h8_scankey
 
 !------------------------------------------------------------------------------
 ! h8_multiplex_digit
@@ -355,6 +372,17 @@ h8_set_octal_addr:
 !------------------------------------------------------------------------------
 	sect .data
 
+    .balign  4
+h8_count:
+h8_count_b3:
+    .byte    0
+h8_count_b2:
+    .byte    0
+h8_count_b1:
+    .byte    0
+h8_count_b0:
+    .byte    0
+
     .even
 digindex:
     .word 1
@@ -420,6 +448,10 @@ reg_7seg_sg:
     .byte  0b11111111,  0b10100100, 0b10000101, 0b00000000
 reg_7seg_pc:
     .byte  0b11111111,  0b10011000, 0b11001110, 0b00000000
+reg_7seg_ps:
+    .byte  0b11111111,  0b10011000, 0b10100100, 0b00000000
+reg_7seg_fc:
+    .byte  0b11111111,  0b10011100, 0b11001110, 0b00000000
 reg_7seg_r0:
     .byte  0b11111111,  0b11011110, 0b10000001, 0b00000000
 reg_7seg_r1:

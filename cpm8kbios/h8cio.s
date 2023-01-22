@@ -190,27 +190,45 @@ nodetect:
 cio_nvi:
     ldb   rh0, #CIO_PCSA
     CIO_GET
-    bitb  rl0, #5               ! check IUS bit
-    ret   z                     ! it's not our fault
+    bitb  rl0, #5              ! check IP bit for port A
+    jr    z, cio_nvi_notpcsa
 
+    inb   rl0, #CIO_A          ! read port A to get interrupt status
+    bitb  rl0, #0              ! check int1
+    jr    nz, cio_nvi_notint1
+    call  h8_display_hook      ! int1 - refresh display (note: if never called, will never clear interrupt)
+cio_nvi_notint1:
+
+    ldb   rh0, #CIO_PCSA
+    ldb   rl0, #0b10100000    ! clear portA IP
+    CIO_SET
+    ldb   rl0, #0b01100000    ! clear portA IUS
+    CIO_SET
+
+cio_nvi_notpcsa:
+    ldb   rh0, #CIO_CTCS1     ! check IP bit for timer1
+    CIO_GET
+    bitb  rl0, #5
+    jr    z, cio_nvi_notctcs1
+
+    call  cio_timer_hook
+
+    ldb   rh0, #CIO_CTCS1
+    ldb   rl0, #0b10100100    ! clear timer1 IP
+    CIO_SET
+    ldb   rl0, #0b01100100    ! clear timer1 IUS
+    CIO_SET
+
+cio_nvi_notctcs1:
+    ret
+
+!------------------------------------------------------------------------------
+! cio_timer_hook
+
+cio_timer_hook:
     ldl   rr0, cio_count        ! increment the cycle counter
     addl  rr0, #1
     ldl   cio_count, rr0
-
-    andb  rl1, #0x1F            ! every 32 cycle counts, do an update
-    jr    nz, cio_nvi_not_upd
-    call  mon_update
-cio_nvi_not_upd:
-
-    call  h8_multiplex_digit
-
-    call  h8_scankey
-
-    ldb   rh0, #CIO_PCSA
-    ldb   rl0, #0b10100000    ! clear IP
-    CIO_SET
-    ldb   rl0, #0b01100000    ! clear IUS
-    CIO_SET
     ret
 
 !------------------------------------------------------------------------------
@@ -263,17 +281,27 @@ cio_divisor:
     sect .rdata
 
 ciocmds:
-    .byte   CIO_DDA, 0b01111111    ! PortA D7 outputs, D0..D6 inputs
-    .byte   CIO_DDB, 0b11111111    ! PortB all inputs
-    .byte   CIO_DDC, 0b11111111    ! PortC all inputs
-    .byte   CIO_PMA,    0b01111111  ! PortA Pattern mask enable D0..D6 
-    .byte   CIO_PTA,    0b00000000  ! PortA Pattern transition set to no transition
-    .byte   CIO_PPA,    0b00000000  ! PortA Pattern polarity register set to all zero
-    .byte   CIO_PMSA,   0b00000110  ! 00=bitport, 0=no_itb, 0=no_singlebuffer, 0=no_imo, 11=or-priority-mode, 0=no_lpm
-    .byte   CIO_PCSA,   0b11000000  ! PortA enable interrupts, disable interrupt-on-error
-    .byte   CIO_MCCR,   0b10000100  ! Enable portA, portB
-    .byte   CIO_MICR,   0b10100010  ! MIE, NV, RJA
-    .byte   CIO_A,      0b00000000  ! set PortA h8 ie bit
+                                           ! Configure Port A as an interrupt controller
+    .byte   CIO_DDA,    0b01111111         ! PortA D7 outputs, D0..D6 inputs
+    .byte   CIO_DDB,    0b11111111         ! PortB all inputs
+    .byte   CIO_DDC,    0b11111111         ! PortC all inputs
+    .byte   CIO_PMA,    0b01111111         ! PortA Pattern mask enable D0..D6 
+    .byte   CIO_PTA,    0b00000000         ! PortA Pattern transition set to no transition
+    .byte   CIO_PPA,    0b00000000         ! PortA Pattern polarity register set to all zero
+    .byte   CIO_PMSA,   0b00000110         ! 00=bitport, 0=no_itb, 0=no_singlebuffer, 0=no_imo, 11=or-priority-mode, 0=no_lpm
+    .byte   CIO_PCSA,   0b11000000         ! PortA enable interrupts, disable interrupt-on-error
+
+                                           ! Configure Timer 1 as 20 ticks per second
+    .byte   CIO_CTTC1M, CIO_DIVISOR >> 8   ! divisor high byte
+    .byte   CIO_CTTC1L, CIO_DIVISOR & 0xFF ! divisor low byte
+    .byte   CIO_CTMS1,  0b10000000         ! Continuous, Pulse Mode, no external output
+    .byte   CIO_CTCS1,  0b11000000         ! Enable interrupt for CTR1
+
+    .byte   CIO_MCCR,   0b11000100         ! Enable portA, portB, and ctr1
+    .byte   CIO_CTCS1,  0b11000110         ! Set TCB and Gate to start counter. Must be after enable
+    .byte   CIO_MICR,   0b10100010         ! MIE, NV, RJA
+
+    .byte   CIO_A,      0b00000000         ! set PortA h8 ie bit
 ciocmde:
 
 ciomsg:
