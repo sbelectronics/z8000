@@ -109,36 +109,36 @@ mon_start:
     jp     go_state_mem_display
 
 go_state_mem_display:
-    ldb    cio_dots, #0
+    ldb    h8_dots, #0
     ldb    mon_state, #STATE_MEM_DISPLAY
     ret
 
 go_state_mem_addr:
-    ldb    cio_dots, #1
+    ldb    h8_dots, #1
     ldb    mon_state, #STATE_MEM_ADDR1
     ret
 
 go_state_mem_alter:
-    ldb    cio_dots, #2
+    ldb    h8_dots, #2
     ldb    mon_state, #STATE_MEM_ALTER1
     ret
 
 go_state_reg_display:
-    ldb    cio_dots, #0
+    ldb    h8_dots, #0
     ldb    mon_state, #STATE_REG_DISPLAY
     ret
 
 go_state_reg_alter:
-    ldb    cio_dots, #2
+    ldb    h8_dots, #2
     ldb    mon_state, #STATE_REG_ALTER1
     ret
 
 
 go_rtm:
-    testb   cio_break
+    testb   h8_break
     ret     nz                              ! we're already in break state
-    ldb     cio_break, #1
-    setb    cio_digsel_or, #13              ! turn on the monitor LED
+    ldb     h8_break, #1
+    setb    h8_digsel_or, #13              ! turn on the monitor LED
 
     ld      r0, #SAVED_TRAP_FRAME_SIZE/2    ! copy registers from trap_frame
     ld      r1, trap_frame                  ! ... to saved_trap_frame
@@ -168,10 +168,10 @@ rtm_loop:
     jr      rtm_loop
 
 go_go:
-    cpb     cio_break, #1
+    cpb     h8_break, #1
     ret     nz               ! we're not in break state
-    clrb    cio_break
-    resb    cio_digsel_or, #13              ! turn off the monitor LED
+    clrb    h8_break
+    resb    h8_digsel_or, #13              ! turn off the monitor LED
 
     ld      r0, #SAVED_TRAP_FRAME_SIZE/2    ! copy registers from saved_trap_frame
     ld      r1, trap_frame                  ! ... to trap_frame
@@ -181,9 +181,9 @@ go_go:
     ret
 
 go_radix:
-    ldb    rl0, cio_radix
+    ldb    rl0, h8_radix
     xorb   rl0, #1
-    ldb    cio_radix, rl0
+    ldb    h8_radix, rl0
     ret
 
 !------------------------------------------------------------------------------
@@ -207,7 +207,7 @@ mon_state_idle_not_radix:
 ! mon_state_addr1
 
 mon_state_addr1:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_addr1_hex
     cpb    rl0, #7
     jp     gt, mon_state_addr_not_oct
@@ -236,7 +236,7 @@ mon_state_addr_not_oct:
 ! mon_state_addr2
 
 mon_state_addr2:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_addr2_hex
     cpb    rl0, #7
     jp     gt, mon_state_addr_not_oct
@@ -259,7 +259,7 @@ mon_state_addr2_hex:
 ! mon_state_addr3
 
 mon_state_addr3:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_addr3_hex
     cpb    rl0, #7
     jp     gt, mon_state_addr_not_oct
@@ -281,7 +281,7 @@ mon_state_addr3_hex:
 ! mon_state_addr4
 
 mon_state_addr4:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_addr4_hex
     cpb    rl0, #7
     jp     gt, mon_state_addr_not_oct
@@ -303,7 +303,7 @@ mon_state_addr4_hex:
 ! mon_state_addr5
 
 mon_state_addr5:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_addr5_hex
     cpb    rl0, #7
     jp     gt, mon_state_addr_not_oct
@@ -358,7 +358,7 @@ mon_state_mem_display_not_alter:
 ! mon_state_alter1
 
 mon_state_alter1:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_alter1_hex
     cpb    rl0, #7
     jp     gt, mon_state_alter_not_oct
@@ -381,7 +381,7 @@ mon_state_alter_not_oct:
 ! mon_state_alter2
 
 mon_state_alter2:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_alter2_hex
     cpb    rl0, #7
     jp     gt, mon_state_alter_not_oct
@@ -397,7 +397,7 @@ mon_state_alter2_hex:
 ! mon_state_alter3
 
 mon_state_alter3:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_alter3_hex
     cpb    rl0, #7
     jp     gt, mon_state_alter_not_oct
@@ -423,7 +423,7 @@ mon_alter:
     ldb    rl1, @r2           ! using rl0 won't work because SEG/NONSEG wipe it
 	NONSEG
 
-    testb  cio_radix
+    testb  h8_radix
     jr     z, mon_state_alter_oct
     sllb   rl1, #1            ! hex needs one more shift than octal
 mon_state_alter_oct:
@@ -439,7 +439,7 @@ mon_state_alter_oct:
 ! mon_state_reg_alter1
 
 mon_state_reg_alter1:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_reg_alter1_hex
     cpb    rl0, #7
     jp     gt, mon_state_reg_alter_not_oct
@@ -466,7 +466,7 @@ mon_state_reg_alter_not_oct:
 ! mon_state_reg_alter2
 
 mon_state_reg_alter2:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_reg_alter2_hex
     cpb    rl0, #7
     jp     gt, mon_state_reg_alter_not_oct
@@ -490,7 +490,7 @@ mon_state_reg_alter2_hex:
 ! mon_state_reg_alter3
 
 mon_state_reg_alter3:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_reg_alter3_hex
     cpb    rl0, #7
     jp     gt, mon_state_reg_alter_not_oct
@@ -514,7 +514,7 @@ mon_state_reg_alter3_hex:
 ! mon_state_reg_alter4
 
 mon_state_reg_alter4:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_reg_alter4_hex
     cpb    rl0, #7
     jp     gt, mon_state_reg_alter_not_oct
@@ -540,7 +540,7 @@ mon_state_reg_alter4_hex:
 ! mon_state_reg_alter5
 
 mon_state_reg_alter5:
-    testb  cio_radix
+    testb  h8_radix
     jr     nz, mon_state_reg_alter5_hex
     cpb    rl0, #7
     jp     gt, mon_state_reg_alter_not_oct
@@ -650,7 +650,7 @@ mon_update:
 mon_update_mem_display:
     ! show the memory address
     ld     r0, mon_addr
-    call   cio_set_octal_addr
+    call   h8_set_octal_addr
 
     ! show the memory value
     clr    r2
@@ -660,24 +660,24 @@ mon_update_mem_display:
     ldb    rl1, @r2           ! using rl0 won't work because SEG/NONSEG wipe it
 	NONSEG
     ldb    rl0, rl1
-    call   cio_set_octal_r
+    call   h8_set_octal_r
     jp     mon_update_dots
 
 mon_update_reg_display:
     ! show register contents
     call   mon_get_reg_addr
     ld     r0, @r1                ! load the contents
-    call   cio_set_octal_addr
+    call   h8_set_octal_addr
 
     ! show register name
     ldb    rl0, mon_reg_index
-    call   cio_set_reg_r
+    call   h8_set_reg_r
     jp     mon_update_dots
 
 mon_update_dots:
-    lda    r1, digits
+    lda    r1, h8_digits
     ldb    rh0, #9
-    ldb    rl0, cio_dots
+    ldb    rl0, h8_dots
     testb  rl0
     ret    z                      ! no dots to light
     cpb    rl0, #1
@@ -688,12 +688,12 @@ mon_update_dots_1:
     dbjnz  rh0, mon_update_dots_1
     ret
 mon_update_dots_check2:
-    ldb   rl0, cio_dotpos
+    ldb   rl0, h8_dotpos
     decb  rl0, #1
     jr    nz, mon_dotpos_nowrap
     ldb   rl0, #9
 mon_dotpos_nowrap:
-    ldb   cio_dotpos, rl0
+    ldb   h8_dotpos, rl0
 mon_update_dots_2:
     cpb    rh0, rl0
     jr     z, mon_update_dots_at_pos

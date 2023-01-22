@@ -380,7 +380,7 @@ dpb_ramdisk:
 	.word	0	! CKS	: checksum
 	.word	0	! OFF	: Reserved track	
 
-! 512 tracks total. Two reserved tracks, for boot disk 
+! 512 tracks total. Three reserved tracks, for boot disk 
 dpb_supdisk:
 	.word	128	! SPT	: sectors per track
 	.byte	5	! BSH	: block shift
