@@ -202,7 +202,6 @@ cio_nvi:
     call  mon_update
 cio_nvi_not_upd:
 
-cio_nvi_again:
     call  h8_multiplex_digit
 
     call  h8_scankey
@@ -212,16 +211,6 @@ cio_nvi_again:
     CIO_SET
     ldb   rl0, #0b01100000    ! clear IUS
     CIO_SET
-
-    ! NOTE: OR-priority-encoded should have been an alternative to this, as docs claim IP cannot be
-    ! reset while the pattern is present.
-
-    ! check to see if a pattern was matched after we cleared IP
-    ldb   rh0, #CIO_PCSA
-    CIO_GET
-    andb  rl0, #0b00100010    ! check IP and PMF
-    cpb   rl0, #0b00000010
-    jr    z, cio_nvi_again    ! uh oh, PMF is set but not IP. Go back and look for more interrupts.
     ret
 
 !------------------------------------------------------------------------------
@@ -280,7 +269,7 @@ ciocmds:
     .byte   CIO_PMA,    0b01111111  ! PortA Pattern mask enable D0..D6 
     .byte   CIO_PTA,    0b00000000  ! PortA Pattern transition set to no transition
     .byte   CIO_PPA,    0b00000000  ! PortA Pattern polarity register set to all zero
-    .byte   CIO_PMSA,   0b00001100  ! 00=bitport, 0=no_itb, 0=no_singlebuffer, 1=imo, 10=ormode, 0=no_lpm
+    .byte   CIO_PMSA,   0b00000110  ! 00=bitport, 0=no_itb, 0=no_singlebuffer, 0=no_imo, 11=or-priority-mode, 0=no_lpm
     .byte   CIO_PCSA,   0b11000000  ! PortA enable interrupts, disable interrupt-on-error
     .byte   CIO_MCCR,   0b10000100  ! Enable portA, portB
     .byte   CIO_MICR,   0b10100010  ! MIE, NV, RJA
