@@ -611,37 +611,40 @@ mon_get_reg_addr:
     cpb    mon_reg_index, #0
     jr     nz, not_sg
 
-    lda    r1, mon_regs
+    lda    r1, mon_regs        ! memory segment pseudo-register
     add    r1, mon_reg_index_word
     add    r1, mon_reg_index_word
     ret
 
-    ! to verify these, jump to mon_test_reg in DDT then look for the right
+    ! Remaining registers are all based on trap_frame / saved_trap_frame.
+    ! To verify these, jump to mon_test_reg in DDT then look for the right
     ! signature.
 
 not_sg:
+    ld     r1, trap_frame      ! assume we're not in break -- display live trap frame
+    testb  h8_break
+    jr     z, reg_addr_not_break
+    lda    r1, mon_saved_trap_frame   ! we are in break -- use the saved trap frame
+reg_addr_not_break:
+
     cpb    mon_reg_index, #1
     jr     nz, not_pc
-    ld     r1, trap_frame
     add    r1, #38              ! 32 bytes for trap_frame, 6
     ret
 
 not_pc:
     cpb    mon_reg_index, #2
     jr     nz, not_ps
-    ld     r1, trap_frame
     add    r1, #36              ! 32 bytes for trap_frame, 6
     ret
 
 not_ps:
     cpb    mon_reg_index, #3
     jr     nz, not_fcw
-    ld     r1, trap_frame
     add    r1, #34              ! 32 bytes for trap_frame, 6
     ret
 
 not_fcw:
-    ld     r1, trap_frame
     sub    r1, #6               ! index is + 8, but the bottom 2 bytes of trap_frame are empty slot
     add    r1, mon_reg_index_word
     add    r1, mon_reg_index_word

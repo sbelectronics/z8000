@@ -128,7 +128,6 @@ kludge:
     call    flop_init
 	.endif	
 
-
     .if ENABLE_SUPDISK == 1
     call    supdiskinit
 	.endif	
