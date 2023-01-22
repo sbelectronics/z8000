@@ -90,25 +90,6 @@
 
 .equ CIO_CV, 0x1F
 
-.equ KEY_PLUS, 0x0A
-.equ KEY_MINUS, 0x0B
-.equ KEY_STAR, 0x0C
-.equ KEY_SLASH, 0x0D
-.equ KEY_POUND, 0x0E
-.equ KEY_DOT, 0x0F
-
-.equ KEY_MEM, KEY_POUND
-.equ KEY_ALTER, KEY_SLASH
-
-.equ STATE_IDLE, 0
-.equ STATE_MEM_ADDR1, 1
-.equ STATE_MEM_ADDR2, 2
-.equ STATE_MEM_ADDR3, 3
-.equ STATE_MEM_ADDR4, 4
-.equ STATE_MEM_ADDR5, 5
-.equ STATE_MEM_ADDR6, 6
-.equ STATE_MEM_DISPLAY, 7
-
 !   rh0 = register (input)
 !   rl0 = value (output)
 .macro CIO_GET
@@ -166,12 +147,12 @@ cio_init_detected:
 ! cio_reset
 
 cio_reset:
-    ldb    rh0, #0           ! CIO register 0
-    CIO_GET                  ! read will force us into state 0
-    ldb    rl0, #1           ! write bit 1 in register 0 will cause reset
+    inb     rl0, #CIO_CMD      ! reset the CMD etate machine
+    ldb     rh0, #CIO_MICR
+    ldb     rl0, #1            ! reset CIO
     CIO_SET
-    ldb    rl0, #0           ! leave reset state
-    CIO_SET
+    ldb     rl0, #0b00100010   ! NV, RJA
+    outb    #CIO_CMD, rl0      ! we're still pointing at MICRO
     ret
 
 !------------------------------------------------------------------------------
@@ -181,14 +162,7 @@ cio_reset:
 !   rl0 = 0 if detected, 1 if not detected
 
 cio_detect_and_reset:
-    inb     rl0, #CIO_CMD      ! reset the CMD etate machine
-
-    ldb     rh0, #CIO_MICR
-    ldb     rl0, #1            ! reset CIO
-    CIO_SET
-
-    ldb     rl0, #0b00100010   ! NV, RJA
-    outb    #CIO_CMD, rl0      ! we're still pointing at reg0
+    call    cio_reset
 
     ldb     rh0, #CIO_PPB
     ldb     rl0, #0xA5

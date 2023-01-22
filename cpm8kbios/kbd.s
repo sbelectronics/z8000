@@ -135,13 +135,14 @@ cio_init_detected:
 ! cio_reset
 
 cio_reset:
-    ldb    rh0, #0           ! CIO register 0
-    CIO_GET                  ! read will force us into state 0
-    ldb    rl0, #1           ! write bit 1 in register 0 will cause reset
+    inb     rl0, #CIO_CMD      ! reset the CMD etate machine
+    ldb     rh0, #CIO_MICR
+    ldb     rl0, #1            ! reset CIO
     CIO_SET
-    ldb    rl0, #0           ! leave reset state
-    CIO_SET
+    ldb     rl0, #0b00100010   ! NV, RJA
+    outb    #CIO_CMD, rl0      ! we're still pointing at MICRO
     ret
+
 
 !------------------------------------------------------------------------------
 ! cio_detect
@@ -150,14 +151,7 @@ cio_reset:
 !   rl0 = 0 if detected, 1 if not detected
 
 cio_detect_and_reset:
-    inb     rl0, #CIO_CMD      ! reset the CMD etate machine
-
-    ldb     rh0, #CIO_MICR
-    ldb     rl0, #1            ! reset CIO
-    call    cio_set
-
-    ldb     rl0, #0b00100010   ! NV, RJA
-    outb    #CIO_CMD, rl0      ! we're still pointing at reg0
+    call    cio_reset
 
     ldb     rh0, #CIO_PPB
     ldb     rl0, #0xA5
