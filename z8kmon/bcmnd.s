@@ -25,7 +25,7 @@ bootflash_cmnd:
 	! Segment 03 is where we want CP/M system to be
 	ldl	    rr2,    #0x40000000
 	ldl	    rr4,    #0x03000000
-	ld      r0,     #0x4000         ! Transfer 16,384 words
+	ld      r0,     #0x6000         ! Transfer 24576 words = 48KB
     ldir    @rr4, @rr2, r0
 
 	lda	    rr4, bmsg2

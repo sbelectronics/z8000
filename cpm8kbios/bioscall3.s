@@ -316,57 +316,57 @@ maxdsk:
 !  Refer to "Grant's homebuilt electronics" Web page.
 !  http://http://searle.x10host.com/cpm/index.html 
 
-! 512 tracks total. Two reserved tracks, for boot disk 
+! 512 tracks total. Three reserved tracks, for boot disk 
 dpb_ide:
 	.word	128	! SPT	: sectors per track
 	.byte	5	! BSH	: block shift
 	.byte	31	! BLM	: block mask
 	.byte	1	! EXM	: extent mask
 	.byte	0	! Dummy
-	.word	2039	! DSM	: bloks for data
+	.word	2035	! DSM	: bloks for data
 	.word	511	! DRM	: size of directory
 	.byte	0xf0	! AL0	: directory allocation bitmap
 	.byte	0	! AL1
 	.word	0	! CKS	: checksum
-	.word	2	! OFF	: Reserved track
+	.word	3	! OFF	: Reserved track
 
 ! See http://www.gaby.de/cpm/manuals/archive/cpm22htm/ch6.htm
 ! Each track is 16KB
 ! TotalTracks=MemKB*1024/128.0/128.0
-! DataTracks=TotalTracks-2
+! DataTracks=TotalTracks-3
 ! DataBlocks=(DataTracks*128*128/4096.0)-1   # 4K blocks
 ! DataBlocks=(DataTracks*128*128/2048.0)-1   # 2K blocks
 
 
-! Two reserved tracks, for boot disk, up to 960 KB, 60 tracks, 2K blocks
+! Three reserved tracks, for boot disk, up to 960 KB, 60 tracks, 2K blocks
 dpb_romdisk_2k:
 	.word	128	! SPT	: sectors per track
 	.byte	4	! BSH	: block shift
 	.byte	15	! BLM	: block mask
 	.byte	0	! EXM	: extent mask
 	.byte	0	! Dummy
-	.word	463	! DSM	: bloks for data
+	.word	455	! DSM	: bloks for data
 	.word	255	! DRM	: size of directory
 	.byte	0xF0	! AL0	: directory allocation bitmap
 	.byte	0	! AL1
 	.word	0	! CKS	: checksum
-	.word	2	! OFF	: Reserved track
+	.word	3	! OFF	: Reserved track
 
-! Two reserved tracks, for boot disk, up to 960 KB, 60 tracks, 4k blocks
+! Three reserved tracks, for boot disk, up to 960 KB, 60 tracks, 4k blocks
 dpb_romdisk_4k:
 	.word	128	! SPT	: sectors per track
 	.byte	5	! BSH	: block shift
 	.byte	31	! BLM	: block mask
 	.byte	3	! EXM	: extent mask
 	.byte	0	! Dummy
-	.word	231	! DSM	: bloks for data
+	.word	227	! DSM	: bloks for data
 	.word	255	! DRM	: size of directory
 	.byte	0xC0	! AL0	: directory allocation bitmap
 	.byte	0	! AL1
 	.word	0	! CKS	: checksum
-	.word	2	! OFF	: Reserved track	
+	.word	3	! OFF	: Reserved track	
 
-! Zero reserved tracks, for boot disk, up to 704 KB, 44 tracks
+! Zero reserved tracks, for ram disk, up to 704 KB, 44 tracks
 dpb_ramdisk:
 	.word	128	! SPT	: sectors per track
 	.byte	5	! BSH	: block shift
@@ -387,12 +387,12 @@ dpb_supdisk:
 	.byte	31	! BLM	: block mask
 	.byte	1	! EXM	: extent mask
 	.byte	0	! Dummy
-	.word	2039	! DSM	: bloks for data
+	.word	2035	! DSM	: bloks for data
 	.word	511	! DRM	: size of directory
 	.byte	0xf0	! AL0	: directory allocation bitmap
 	.byte	0	! AL1
 	.word	128	! CKS	: checksum -- supdisk is "removable"
-	.word	2	! OFF	: Reserved track
+	.word	3	! OFF	: Reserved track
 
 ! Two reserved tracks, for boot disk, up to 1404 KB, 160 tracks, 2K blocks
 dpb_floppy:
@@ -401,12 +401,13 @@ dpb_floppy:
 	.byte	15	! BLM	: block mask
 	.byte	0	! EXM	: extent mask
 	.byte	0	! Dummy
-	.word	710	! DSM	: bloks for data
+	.word	710	! DSM	: bloks for data                     TODO: Can't verify calculation
 	.word	255	! DRM	: size of directory
 	.byte	0xF0	! AL0	: directory allocation bitmap
 	.byte	0	! AL1
 	.word	64	! CKS	: checksum
-	.word	2	! OFF	: Reserved track
+	.word	2	! OFF	: Reserved track                     TODO: Does not support 48K kernel
+
 
 
 !------------------------------------------------------------------------------

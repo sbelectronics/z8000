@@ -5,7 +5,7 @@ diskdef cpm8k
   blocksize 4096
   maxdir 512
   skew 0
-  boottrk 2
+  boottrk 3
   os 2.2
 end
 
@@ -16,7 +16,7 @@ diskdef cpm8krom2k
   blocksize 2048
   maxdir 256
   skew 0
-  boottrk 2
+  boottrk 3
   os 2.2
 end
 
@@ -27,6 +27,6 @@ diskdef cpm8krom4k
   blocksize 4096
   maxdir 256
   skew 0
-  boottrk 2
+  boottrk 3
   os 2.2
 end
